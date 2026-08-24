@@ -29,6 +29,13 @@
       "expected_output": "environment.json 中 gpu.available=true，device_0.gcn_arch 存在，torch_config.hip_version 非空，torch_config.cuda_version 为 null",
       "files": ["assets/templates/environment_capture.py"],
       "auto_check": "python evals/run_evals.py --check-dcu-env <outputs_dir>/environment.json"
+    },
+    {
+      "id": 5,
+      "prompt": "我要跑一个很长的实验，结果必须完整可复查：代码、配置、数据、环境、训练曲线、预测样本、中间结果都不能丢",
+      "expected_output": "使用 experiment_recorder.py 生成 runs/<experiment>/run_<timestamp>/ 记录包：run_manifest.json（代码哈希+git commit+config+args+数据集+环境）、code/ 快照、events.jsonl、training/<method>_metrics.csv、predictions/*_probs.npy、results_partial.json 增量落盘、evaluation_report.json",
+      "files": ["assets/templates/experiment_recorder.py", "references/recording-guide.md"],
+      "auto_check": "python evals/run_evals.py"
     }
   ]
 }
