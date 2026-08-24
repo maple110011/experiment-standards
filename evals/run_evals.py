@@ -83,6 +83,36 @@ def test_environment_capture_keys():
     assert env["packages"]["torch"] == torch.__version__
     assert "available" in env["gpu"]
 
+def test_experiment_recorder_basic():
+    import tempfile, os, json
+    from experiment_recorder import (make_run_dir, log_event, log_epoch,
+                                     update_results_json, save_probs)
+    with tempfile.TemporaryDirectory() as tmp:
+        # 创建一个临时代码文件用于快照
+        code_file = os.path.join(tmp, "train.py")
+        with open(code_file, "w") as f:
+            f.write("print('hello')\n")
+        run_dir = make_run_dir(tmp, "exp_test", config={"lr": 0.01},
+                               code_paths=[code_file], env={"gpu": "none"})
+        assert os.path.exists(os.path.join(run_dir, "run_manifest.json"))
+        assert os.path.exists(os.path.join(run_dir, "code", "train.py"))
+        with open(os.path.join(run_dir, "run_manifest.json")) as f:
+            manifest = json.load(f)
+        assert manifest["config"] == {"lr": 0.01}
+        assert "train.py" in manifest["code_files"]
+        log_event(run_dir, "test_event", a=1)
+        assert os.path.exists(os.path.join(run_dir, "events.jsonl"))
+        log_epoch(run_dir, "MAP", 0, loss=0.5)
+        assert os.path.exists(os.path.join(run_dir, "training", "MAP_metrics.csv"))
+        update_results_json(run_dir, "results_partial.json", "MAP", {"acc": 0.9})
+        with open(os.path.join(run_dir, "results_partial.json")) as f:
+            partial = json.load(f)
+        assert partial["methods"]["MAP"]["acc"] == 0.9
+        import numpy as np
+        save_probs(run_dir, "MAP", np.zeros((4, 3)), np.arange(4), 3)
+        assert os.path.exists(os.path.join(run_dir, "predictions", "MAP_probs.npy"))
+        assert os.path.exists(os.path.join(run_dir, "predictions", "MAP_ytrue.npy"))
+
 # ---------------------------------------------------------------------------
 # 输出目录校验
 # ---------------------------------------------------------------------------
@@ -148,6 +178,7 @@ if __name__ == "__main__":
         ("checkpoint cleanup keeps recent+best", test_ckpt_cleanup_keeps_recent_and_best),
         ("checkpoint mode=max", test_ckpt_mode_max),
         ("environment_capture keys", test_environment_capture_keys),
+        ("experiment_recorder basic", test_experiment_recorder_basic),
     ]:
         check(name, fn)
 

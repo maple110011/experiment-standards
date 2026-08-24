@@ -141,6 +141,19 @@ Agent 生成的代码必须在训练结束后产生以下文件：
 | `evaluation_report.json` | ✅ | 评估报告 |
 | `figures/` | ✅ | 图表 |
 
+## 大型实验记录包 (长实验必读)
+
+长时间训练、多方法对比、需要事后复算指标或写论文的实验，**必须**使用
+`assets/templates/experiment_recorder.py` 生成标准记录包（代码快照、完整配置、
+事件时间线、每方法训练曲线、预测概率/样本、增量结果）。详细规范见
+[recording-guide.md](./references/recording-guide.md)。核心要求:
+
+- `make_run_dir()` 创建 `runs/<experiment>/run_<时间戳>/`
+- 预测概率/样本必须落盘 (`save_probs` / `save_samples_npz`)
+- 每完成一个方法/阶段立即 `update_results_json`
+- 每方法逐 epoch 指标写入 `training/<method>_metrics.csv`
+- 记录代码哈希、git commit、完整依赖版本、模型结构和显存占用
+
 ## 何时读取参考资源
 
 根据用户的具体需求，选择性读取以下参考文档：
@@ -152,6 +165,7 @@ Agent 生成的代码必须在训练结束后产生以下文件：
 | 记录环境信息 / 配日志 | [logging-guide.md](./references/logging-guide.md) | §1 (环境), §2 (日志), §3 (CSV), §4 (元数据) |
 | 规范输出目录 / 评估报告 / 模型导出 | [output-spec.md](./references/output-spec.md) | §1 (目录), §2 (报告), §3 (导出); Pyro/MCMC 用户加读 §3 后半 |
 | 训练崩溃恢复 / NaN处理 / 内存管理 | [resilience-guide.md](./references/resilience-guide.md) | §1 (NaN), §2 (梯度), §3 (回退), §4 (DataLoader), §5 (内存) |
+| 大型实验记录 / 可复现记录包 / 预测样本保存 | [recording-guide.md](./references/recording-guide.md) | 全部 |
 
 
 ## 国产加速卡 (海光 DCU / ROCm / HIP) 注意事项
@@ -190,6 +204,7 @@ Agent 生成的代码必须在训练结束后产生以下文件：
 | EarlyStopper 类 | `assets/templates/early_stopper.py` |
 | capture_environment() 函数 | `assets/templates/environment_capture.py` |
 | generate_evaluation_report() / generate_experiment_metadata() | `assets/templates/evaluation_report.py` |
+| experiment_recorder（大型实验记录包） | `assets/templates/experiment_recorder.py` |
 
 ## 参考资源
 
