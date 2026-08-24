@@ -11,7 +11,7 @@ gcnArchName 与 torch.version.hip, 而不是误标 compute_capability。
     env = capture_environment()
     json.dump(env, open("environment.json", "w"), indent=2, ensure_ascii=False, default=str)
 """
-import os, platform, sys, json
+import os, platform, sys, json, subprocess
 import torch
 
 
@@ -53,6 +53,15 @@ def capture_environment():
         },
         "packages": {"torch": torch.__version__},
     }
+    # 常用科学计算/BDL 包版本 (已安装才记录)
+    for _pkg in ["numpy", "scipy", "sklearn", "pandas", "pyro", "laplace"]:
+        try:
+            _mod = __import__(_pkg)
+            env["packages"][_pkg] = getattr(_mod, "__version__", "unknown")
+        except Exception:
+            pass
+    env["python_impl"] = platform.python_implementation()
+    env["python_executable"] = sys.executable
 
     # CPU/RAM/磁盘 (psutil 可选)
     try:
@@ -94,6 +103,27 @@ def capture_environment():
         "mkldnn_available": torch.backends.mkldnn.is_available(),
         "mps_available": mps_available,
     }
+
+    # ROCm/DTK 环境变量 (海光 DCU 等) + 驱动版本
+    rocm_env = {}
+    for _k in ["DTKROOT", "HIP_PATH", "AMDGPU_TARGETS", "ROCM_PATH"]:
+        _v = os.environ.get(_k)
+        if _v:
+            rocm_env[_k] = _v
+    if rocm_env:
+        env["rocm_env"] = rocm_env
+    if getattr(torch.version, "hip", None):
+        try:
+            _drv = subprocess.run(["hy-smi", "--showdriverversion"],
+                                  capture_output=True, text=True, timeout=10)
+            if _drv.returncode == 0:
+                _drv_line = [l for l in _drv.stdout.splitlines() if "Driver Version" in l]
+                if _drv_line:
+                    env["rocm_env"]["hy_smi_driver_version"] = _drv_line[0].strip()
+                else:
+                    env["rocm_env"]["hy_smi_driver_version"] = _drv.stdout.strip().splitlines()[-1]
+        except Exception:
+            pass
 
     try:
         import google.colab
