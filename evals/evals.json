@@ -1,0 +1,34 @@
+{
+  "skill_name": "experiment-standards",
+  "description": "Test prompts for verifying experiment-standards skill. Run unit tests with: python evals/run_evals.py. Run output-file validation with: python evals/run_evals.py --check-outputs <outputs_dir>",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "给我的训练脚本加上 checkpoint 和 early stopping",
+      "expected_output": "生成的代码包含 CheckpointManager 类和 EarlyStopper 类，checkpoint 包含完整状态（参数+optimizer+RNG+config），支持断点续训，CheckpointManager/EarlyStopper 都支持 mode='min'/'max'",
+      "files": ["assets/templates/checkpoint_manager.py", "assets/templates/early_stopper.py"],
+      "auto_check": "python evals/run_evals.py"
+    },
+    {
+      "id": 2,
+      "prompt": "帮我标准化这个实验的输出——需要环境记录、日志、评估报告",
+      "expected_output": "包含 environment.json（CPU/GPU/RAM + torch.version.hip）、seed.json、拆分 training.log + errors.log、evaluation_report.json、best_model.pt",
+      "files": ["assets/templates/environment_capture.py", "assets/templates/evaluation_report.py"],
+      "auto_check": "python evals/run_evals.py --check-outputs <outputs_dir>"
+    },
+    {
+      "id": 3,
+      "prompt": "这个训练经常中途崩溃，怎么加异常恢复？",
+      "expected_output": "包含 NaN/Inf 检测代码、异常时自动回退 checkpoint、梯度爆炸检测/裁剪、自动降 lr 重试机制、OOM 恢复",
+      "files": ["references/resilience-guide.md"],
+      "auto_check": "grep -q 'isfinite' references/resilience-guide.md"
+    },
+    {
+      "id": 4,
+      "prompt": "在 DCU/ROCm 上跑实验，环境记录要正确识别加速卡",
+      "expected_output": "environment.json 中 gpu.available=true，device_0.gcn_arch 存在，torch_config.hip_version 非空，torch_config.cuda_version 为 null",
+      "files": ["assets/templates/environment_capture.py"],
+      "auto_check": "python evals/run_evals.py --check-dcu-env <outputs_dir>/environment.json"
+    }
+  ]
+}
