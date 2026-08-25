@@ -105,7 +105,7 @@ lr = get_lr(epoch)  # warmup + 阶梯衰减，见 training-control.md §2
 
 ```python
 csv_logger.writerow({"epoch": e, "train_loss": loss, "val_metric": val, "lr": lr})
-if np.isnan(loss):  # 自动回退checkpoint + 降lr，见 resilience-guide.md §1
+if not np.isfinite(float(loss)):  # 自动回退checkpoint + 降lr，见 resilience-guide.md §1
 ```
 
 ### 第 7 步: 生成评估报告 + 导出模型 + 实验元数据
@@ -153,6 +153,8 @@ Agent 生成的代码必须在训练结束后产生以下文件：
 - 每完成一个方法/阶段立即 `update_results_json`
 - 每方法逐 epoch 指标写入 `training/<method>_metrics.csv`
 - 记录代码哈希、git commit、完整依赖版本、模型结构和显存占用
+- TensorBoard events 自动写入 `run_dir/tb/`，校准曲线用
+  `plot_reliability_diagram()` / `plot_regression_calibration()` 自动生成
 
 ## 何时读取参考资源
 
