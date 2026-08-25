@@ -79,6 +79,24 @@ def auto_reduce_lr(loss_history, window=500, factor=0.5, threshold=0.001):
     return improvement < threshold
 ```
 
+### batch size 缩放与学习率
+
+加大 batch 能提升吞吐（见 [long-running-guide.md](./long-running-guide.md) §6），
+但会改变收敛行为，需配合学习率缩放：
+
+```python
+def scale_lr(base_lr, base_batch, new_batch, rule="sqrt"):
+    """batch 翻倍时 lr 线性(×N)或平方根(×√N)缩放。"""
+    factor = (new_batch / base_batch) if rule == "linear" else (new_batch / base_batch) ** 0.5
+    return base_lr * factor
+```
+
+- **线性缩放** (`lr × N`) 是 SGD 的经典做法；**平方根缩放** (`lr × √N`) 对
+  Adam 更稳。回归/表格大模型用平方根缩放配合大 batch 实测又快又好。
+- **先测吞吐再定 batch**：不同模型的吞吐曲线不同，`2 的幂不是魔法`，必须实测。
+- **不要只看吞吐**：图像 CNN 大 batch 常精度略降 0.5-1 点，需要 lr 微调；
+  小数据上大 batch 结论不稳定（batch 数变少）。
+
 ## 3. 训练循环完整集成示例
 
 ```python

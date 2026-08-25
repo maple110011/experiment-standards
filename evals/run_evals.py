@@ -63,7 +63,7 @@ def test_ckpt_cleanup_keeps_recent_and_best():
             m.save(epoch=e, config={}, model_state={}, optimizer_state={}, rng_state={})
         m.save(epoch=2000, config={}, model_state={}, optimizer_state={}, rng_state={}, is_best=True)
         files = os.listdir(os.path.join(tmp, "ckpt"))
-        epoch_files = [f for f in files if f.startswith("ckpt_epoch")]
+        epoch_files = [f for f in files if f.startswith("ckpt_epoch") and f.endswith(".tar")]
         assert len(epoch_files) == 3, sorted(epoch_files)
         assert "ckpt_best.tar" in files
 
@@ -82,6 +82,17 @@ def test_environment_capture_keys():
         assert key in env, f"missing {key}"
     assert env["packages"]["torch"] == torch.__version__
     assert "available" in env["gpu"]
+
+def test_ckpt_damaged_fallback():
+    from checkpoint_manager import CheckpointManager
+    with tempfile.TemporaryDirectory() as tmp:
+        m = CheckpointManager(os.path.join(tmp, "ckpt"), keep_recent_n=5)
+        m.save(epoch=10, config={}, model_state={}, optimizer_state={}, rng_state={})
+        # 放一个更新的但已损坏的 checkpoint, load 应自动回退到 epoch 10
+        with open(os.path.join(tmp, "ckpt", "ckpt_epoch999.tar"), "w") as f:
+            f.write("not a torch archive")
+        ck = m.load()
+        assert ck is not None and ck["epoch"] == 10
 
 def test_experiment_recorder_basic():
     import tempfile, os, json
@@ -112,6 +123,30 @@ def test_experiment_recorder_basic():
         save_probs(run_dir, "MAP", np.zeros((4, 3)), np.arange(4), 3)
         assert os.path.exists(os.path.join(run_dir, "predictions", "MAP_probs.npy"))
         assert os.path.exists(os.path.join(run_dir, "predictions", "MAP_ytrue.npy"))
+
+def test_experiment_recorder_extra_outputs():
+    import tempfile, os, json
+    import numpy as np
+    from experiment_recorder import (make_run_dir, save_regression_predictions,
+                                     save_split_indices, update_shift_results_json,
+                                     save_temperature_scaling, save_model_weights)
+    with tempfile.TemporaryDirectory() as tmp:
+        run_dir = make_run_dir(tmp, "exp_extra", config={}, env={"gpu": "none"})
+        save_regression_predictions(run_dir, "MAP", np.zeros(4), np.ones(4), np.arange(4))
+        assert os.path.exists(os.path.join(run_dir, "predictions", "MAP_mean.npy"))
+        assert os.path.exists(os.path.join(run_dir, "predictions", "MAP_var.npy"))
+        save_split_indices(run_dir, [0, 1], [2], [3])
+        assert os.path.exists(os.path.join(run_dir, "split_indices.npz"))
+        update_shift_results_json(run_dir, "gaussian", "MAP", {"acc": 0.8})
+        with open(os.path.join(run_dir, "evaluation_shift.json")) as f:
+            assert json.load(f)["shifts"]["gaussian"]["MAP"]["acc"] == 0.8
+        save_temperature_scaling(run_dir, "MAP", 1.2, {"ece": 0.1}, {"ece": 0.05})
+        assert os.path.exists(os.path.join(run_dir, "calibration_temperature.json"))
+        class M:
+            def state_dict(self):
+                return {"w": np.zeros(1)}
+        save_model_weights(run_dir, "MAP", M())
+        assert os.path.exists(os.path.join(run_dir, "checkpoints", "MAP_best.pt"))
 
 # ---------------------------------------------------------------------------
 # 输出目录校验
@@ -178,7 +213,9 @@ if __name__ == "__main__":
         ("checkpoint cleanup keeps recent+best", test_ckpt_cleanup_keeps_recent_and_best),
         ("checkpoint mode=max", test_ckpt_mode_max),
         ("environment_capture keys", test_environment_capture_keys),
+        ("checkpoint damaged fallback", test_ckpt_damaged_fallback),
         ("experiment_recorder basic", test_experiment_recorder_basic),
+        ("experiment_recorder extra outputs", test_experiment_recorder_extra_outputs),
     ]:
         check(name, fn)
 

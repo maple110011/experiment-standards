@@ -1,6 +1,6 @@
 ---
 name: bayes-dl-dcu
-description: 'Always use this skill when the user wants to run or compare Bayesian deep learning methods (MC Dropout, Deep Ensemble, SWAG, Laplace, SGHMC, Pyro SVI, HMC/NUTS), needs uncertainty quantification or calibration metrics (ECE, sharpness, coverage, NLL), works on scientific/sequential/tabular data like molecules, proteins, time series, UCI regression, or wants DCU/HIP/ROCm adaptation experience and large-model training experience. Also trigger when the user mentions 贝叶斯神经网络, 不确定性估计, 校准, 国产加速卡/DCU/HIP, 分子性质预测, 蛋白质工程, 时序预测, or wants to compare methods under a fair protocol with reusable record packs. Do NOT use for: pure deterministic training without uncertainty, basic checkpoint/logging engineering — that belongs to the experiment-standards skill.'
+description: 'Always use this skill when the user wants to run or compare Bayesian deep learning methods (MC Dropout, Deep Ensemble, SWAG, Laplace, SGHMC, Pyro SVI, HMC/NUTS), needs uncertainty quantification or calibration metrics (ECE, sharpness, coverage, NLL), works on scientific/sequential/tabular data like molecules, proteins, time series, UCI regression, or wants DCU/HIP/ROCm adaptation experience and large-model training experience. Also trigger when the user mentions 贝叶斯神经网络, 不确定性估计, 校准, temperature scaling/后校准, 分布偏移/OOD, 国产加速卡/DCU/HIP, 分子性质预测, 蛋白质工程, 时序预测, or wants to compare methods under a fair protocol with reusable record packs. Do NOT use for: pure deterministic training without uncertainty, basic checkpoint/logging engineering — that belongs to the experiment-standards skill.'
 argument-hint: '[任务: BDL方法选择 / 方法对比 / 不确定性校准 / DCU适配 / 大模型经验]'
 ---
 
@@ -28,14 +28,19 @@ argument-hint: '[任务: BDL方法选择 / 方法对比 / 不确定性校准 / D
 
 1. 读 `references/methods-and-results.md` 选择方法组合和基准配置。
 2. 读 `references/dcu-adaptation.md` 确认设备访问、版本兼容、常见坑。
-3. 用 `experiment-standards` 的 `experiment_recorder.py` 创建 run 目录。
+3. 用 `experiment-standards` 的 `experiment_recorder.py` 创建 run 目录，
+   数据切分后立即 `save_split_indices`。
 4. 从 `bayes-dcu/` 下复制对应脚本模板：
    - 表格回归 `bdl_tabular.py`
    - 分子分类 `bdl_moleculenet.py`
    - 时序一步预测 `bdl_timeseries.py`
    - 图像基准 `bdl_cnn_cifar.py` / `bdl_vgg16bn_cifar.py`
-5. 每完成一个方法：`update_results_json` + `save_probs`；每个 epoch：`log_epoch`。
-6. 最终写 `evaluation_report.json`，并把结果汇总进 `RESULTS_SUMMARY.md`。
+5. 每完成一个方法：`update_results_json` + 保存预测分布
+   （分类 `save_probs`、回归 `save_regression_predictions`、采样类 `save_samples_npz`）；
+   每个 eval_interval：`log_epoch` 记录 train/val 指标。
+6. 评估报告写清 `evaluation_config`（后验样本数、ECE 分箱、Laplace 结构/link_approx、
+   温度缩放前后指标）。有分布偏移/OOD 时写 `evaluation_shift.json`。
+7. 最终写 `evaluation_report.json`，并把结果汇总进 `RESULTS_SUMMARY.md`。
 
 ## 方法速查
 
@@ -51,6 +56,7 @@ argument-hint: '[任务: BDL方法选择 / 方法对比 / 不确定性校准 / D
 | Pyro SVI AutoLowRank | 小模型 | digits 上显著优于 AutoNormal |
 | VBLL (变分贝叶斯最后一层) | 回归/分类 | UCI protein 上 RMSE 4.38/coverage .944/ECE .017, 一次前向; 见 Harrison 2024 |
 | Pyro NUTS | 小模型 | DCU 上能跑但很慢，暂不实用 |
+| Temperature scaling | 后校准 | 分类/回归都能做；缩放前后 ECE/NLL 记录到 `calibration_temperature.json` |
 
 ## 数据选择
 
