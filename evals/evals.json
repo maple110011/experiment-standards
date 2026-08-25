@@ -33,7 +33,7 @@
     {
       "id": 5,
       "prompt": "我要跑一个很长的实验，结果必须完整可复查：代码、配置、数据、环境、训练曲线、预测样本、中间结果都不能丢",
-      "expected_output": "使用 experiment_recorder.py 生成 runs/<experiment>/run_<timestamp>/ 记录包：run_manifest.json（代码哈希+git commit+config+args+数据集+环境）、code/ 快照、events.jsonl、training/<method>_metrics.csv、predictions/*_probs.npy、results_partial.json 增量落盘、evaluation_report.json",
+      "expected_output": "使用 experiment_recorder.py 生成 runs/<experiment>/run_<timestamp>/ 记录包：run_manifest.json、code/ 快照、events.jsonl、training/<method>_metrics.csv、tb/ TensorBoard events、predictions/*_probs.npy、results_partial.json、evaluation_report.json、figures/ 校准曲线、checkpoints/ 权重",
       "files": ["assets/templates/experiment_recorder.py", "references/recording-guide.md"],
       "auto_check": "python evals/run_evals.py"
     }
