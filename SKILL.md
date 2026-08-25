@@ -1,6 +1,6 @@
 ---
 name: experiment-standards
-description: 'Always use this skill when the user asks to standardize ML experiment outputs, needs reproducible training infrastructure, or mentions checkpoint management, experiment logging, environment recording, evaluation reports, early stopping, LR scheduling, training resilience (NaN recovery), or output directory structures — even if they don\'t explicitly say "experiment standards". Also trigger when the user complains about 训练中断无法恢复、实验结果无法复现、不同设备跑出来结果不一样、缺少实验记录、不知道怎么加日志/早停/学习率调度/NaN检测、想做 grid search 但输出一团乱、需要规范输出目录结构等任何训练工程化需求。Covers: checkpoint save/resume, hardware environment capture (CPU/GPU/RAM), seed recording, training/error log separation, CSV metrics tracking, structured evaluation reports (JSON), model weight export (best/final), output directory specification, early stopping, learning rate scheduling (warmup/decay/cosine), NaN/Inf detection and auto-recovery, DataLoader best practices, memory profiling, experiment runner (grid search). Framework-agnostic but includes Pyro/PyTorch examples. Do NOT use for: model architecture design, inference method selection, prior selection, uncertainty calibration — those belong to domain-specific skills.'
+description: 'Always use this skill when the user asks to standardize ML experiment outputs, needs reproducible training infrastructure, or mentions checkpoint management, experiment logging, environment recording, evaluation reports, early stopping, LR scheduling, training resilience (NaN recovery), or output directory structures — even if they don\'t explicitly say "experiment standards". Also trigger when the user complains about 训练中断无法恢复、实验结果无法复现、不同设备跑出来结果不一样、缺少实验记录、不知道怎么加日志/早停/学习率调度/NaN检测、想做 grid search 但输出一团乱、需要规范输出目录结构等任何训练工程化需求, or wants large-experiment record packs, run manifests, code snapshots, prediction sample saving, or incremental result logging. Covers: checkpoint save/resume, hardware environment capture (CPU/GPU/RAM/DCU/HIP), seed recording, training/error log separation, CSV metrics tracking, structured evaluation reports (JSON), model weight export (best/final), output directory specification, early stopping, learning rate scheduling (warmup/decay/cosine), NaN/Inf detection and auto-recovery, DataLoader best practices, memory profiling, experiment runner (grid search), and reusable experiment_recorder for long runs. Framework-agnostic but includes Pyro/PyTorch examples. Do NOT use for: model architecture design, inference method selection, prior selection, uncertainty calibration — those belong to domain-specific skills.'
 argument-hint: '[任务: checkpoint管理 / 实验日志 / 环境记录 / 早停 / 评估报告 / 输出物规范]'
 ---
 
@@ -168,31 +168,14 @@ Agent 生成的代码必须在训练结束后产生以下文件：
 | 大型实验记录 / 可复现记录包 / 预测样本保存 | [recording-guide.md](./references/recording-guide.md) | 全部 |
 
 
-## 国产加速卡 (海光 DCU / ROCm / HIP) 注意事项
+## 领域相关 Skill
 
-- `torch.cuda.is_available()` 在 DCU 上为 `True`, 但 `torch.version.cuda` 为 `None`;
-  必须用 `torch.version.hip` 记录 ROCm/HIP 版本, 用 `get_device_properties().gcnArchName`
-  记录架构 (如 `gfx936`)。`capture_environment()` 模板已处理。
-- 训练脚本中张量/模型的 `.to(device)` 与普通 CUDA 写法一致 (`device="cuda"`)。
-- 首次调用新算子会触发内核编译 (可能数百 ms), 基准测试必须先 warmup。
-- Pyro `AutoNormal` 在 DCU 上可能出现 guide 参数留在 CPU 导致设备不匹配;
-  优先在 `model` 内显式把先验参数创建在 `x.device` 上, 必要时用
-  `pyro.get_param_store().set_state()` 后调用 `.to(device)` 处理。
-- 遇到 `HIP out of memory` 时按 OOM 恢复流程处理 (见 resilience-guide §3)。
-- Pyro 断点续训 / NaN 恢复时, `set_state()` 会把 checkpoint 中的参数按加载时的设备放回
-  param store (通常 `torch.load(map_location="cpu")` 后是 CPU), 必须把 param store 参数
-  逐个 `.to(device)` 移回训练设备, 否则会报 `Expected all tensors to be on the same device`。
-
-## 贝叶斯深度学习补充
-
-- 评估报告除 `coverage_95pct` 外, 建议报告 `test_log_likelihood`、ECE、sharpness
-  (后验预测区间平均宽度), 模板 `evaluation_report.py` 的 metrics 字段支持任意键。
-- 最佳模型判断: SVI 的 `svi.step` 返回负 ELBO, 越小越好; 但 accuracy / ELBO /
-  对数似然是越大越好, `CheckpointManager` 和 `EarlyStopper` 都要设置 `mode="max"`。
-- Pyro SVI 保存/恢复: 保存 `pyro.get_param_store().get_state()` 到 checkpoint 的
-  `model_state`; 恢复用 `pyro.get_param_store().set_state(...)`。
-- MCMC/NUTS 建议额外导出 ArviZ NetCDF (`az.to_netcdf(az.from_pyro(mcmc), ...)`),
-  便于后验分析和跨工具比较。
+- **海光 DCU / ROCm/HIP 环境记录与 Pyro 设备恢复**：`environment_capture.py` 模板已处理
+  硬件识别；DCU 适配、Pyro 在 DCU 上的恢复细节、算子编译 warmup 等经验见
+  `bayes-dl-dcu` Skill 的 `references/dcu-adaptation.md`。
+- **贝叶斯深度学习方法与校准指标**（SVI/Deep Ensemble/SWAG/Laplace/SGHMC/MC Dropout、
+  ECE/sharpness/test_log_likelihood、最佳模型判断 mode）属于 `bayes-dl-dcu` Skill 范围，
+  本 Skill 只负责工程基础设施。生成 BDL 实验代码时，两个 Skill 会配合使用。
 
 ## 可复用模板
 
