@@ -1,0 +1,36 @@
+{
+  "skill_name": "bayes-dl-dcu",
+  "description": "Test prompts for verifying bayes-dl-dcu skill",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我想在 YearPredictionMSD 上比较 Deep Ensemble、SWAG、MC Dropout 和 MAP 的不确定度校准，应该怎么组织实验？",
+      "expected_output": "给出公平对比方案：相同 MLP/数据切分/训练预算，使用 experiment_recorder 记录，报告 RMSE/coverage95/ECE，并说明各方法已测经验",
+      "files": ["references/methods-and-results.md"]
+    },
+    {
+      "id": 2,
+      "prompt": "我在海光 DCU 上跑 Pyro SVI，checkpoint 恢复后报 Expected all tensors to be on the same device，怎么解决？",
+      "expected_output": "说明 set_state 后 param store 参数在 CPU，需要逐个 .to(device) 移回，并给出代码片段",
+      "files": ["references/dcu-adaptation.md"]
+    },
+    {
+      "id": 3,
+      "prompt": "我想在 DCU 上训练一个 VGG16-BN 级别的模型，大约 30 分钟以上，需要注意什么？",
+      "expected_output": "后台 setsid 启动、增量结果、单 epoch 约 10.7s、显存不是瓶颈、SGD+cosine、LMLA 全量太慢等经验",
+      "files": ["references/large-model-experience.md"]
+    },
+    {
+      "id": 4,
+      "prompt": "如何选择 batch size？空间换时间总是可行吗？2 的幂次 batch 有奇效吗？",
+      "expected_output": "先测吞吐、结合算法和显存、BDL 方法 batch 敏感性不同、2 的幂不是魔法；给出 270M MLP 和 CIFAR 扫描结果",
+      "files": ["references/batch-size-guidance.md"]
+    },
+    {
+      "id": 5,
+      "prompt": "我想评估 BDL 方法在分布偏移下的校准和 OOD 表现，应该怎么做？",
+      "expected_output": "构造 shifted 测试集（噪声/模糊/亮度/scaffold split），报告 acc/ECE/NLL 变化，MC Dropout 在部分 shift 下更稳等经验",
+      "files": ["references/methods-and-results.md"]
+    }
+  ]
+}

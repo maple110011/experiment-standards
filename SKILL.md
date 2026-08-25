@@ -172,12 +172,17 @@ Agent 生成的代码必须在训练结束后产生以下文件：
 
 ## 领域相关 Skill
 
+本仓库同时包含子 skill **`bayes-dl-dcu/`**，负责贝叶斯深度学习的方法选择、
+校准指标、分布偏移/OOD、DCU 适配和大模型训练经验：
+
 - **海光 DCU / ROCm/HIP 环境记录与 Pyro 设备恢复**：`environment_capture.py` 模板已处理
-  硬件识别；DCU 适配、Pyro 在 DCU 上的恢复细节、算子编译 warmup 等经验见
-  `bayes-dl-dcu` Skill 的 `references/dcu-adaptation.md`。
+  硬件识别；DCU 适配、Pyro 恢复细节、算子编译 warmup 等见
+  [`bayes-dl-dcu/references/dcu-adaptation.md`](./bayes-dl-dcu/references/dcu-adaptation.md)。
 - **贝叶斯深度学习方法与校准指标**（SVI/Deep Ensemble/SWAG/Laplace/SGHMC/MC Dropout、
-  ECE/sharpness/test_log_likelihood、最佳模型判断 mode）属于 `bayes-dl-dcu` Skill 范围，
-  本 Skill 只负责工程基础设施。生成 BDL 实验代码时，两个 Skill 会配合使用。
+  ECE/sharpness/test_log_likelihood、最佳模型判断 mode）见
+  [`bayes-dl-dcu/SKILL.md`](./bayes-dl-dcu/SKILL.md)。
+- 生成 BDL 实验代码时，两个 skill 配合使用：本 skill 负责工程基础设施和记录包，
+  `bayes-dl-dcu` 负责方法对比协议、校准评估和分布偏移实验设计。
 
 ## 可复用模板
 
