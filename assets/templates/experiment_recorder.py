@@ -283,6 +283,40 @@ def save_split_indices(run_dir, train_idx, val_idx, test_idx, extra=None):
 # ---------------------------------------------------------------------------
 # 模型 / 硬件
 # ---------------------------------------------------------------------------
+def plot_reliability_diagram(run_dir, method_name, probs, y_true, num_classes=None, n_bins=10):
+    """画 reliability diagram (置信度 vs 真实准确率) 并保存到 figures/。"""
+    import numpy as np
+    probs = np.asarray(probs)
+    y_true = np.asarray(y_true)
+    if num_classes is None:
+        num_classes = probs.shape[-1] if probs.ndim == 2 else 2
+    conf = probs.max(-1) if probs.ndim == 2 else probs
+    pred = probs.argmax(-1) if probs.ndim == 2 else (probs > 0.5).astype(np.int64)
+    acc = (pred == y_true).astype(np.float32)
+    bins = np.linspace(0.0, 1.0, n_bins + 1)
+    bin_ids = np.digitize(conf, bins[1:-1])
+    fig_dir = os.path.join(run_dir, "figures"); os.makedirs(fig_dir, exist_ok=True)
+    path = os.path.join(fig_dir, f"reliability_{method_name}.png")
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        xs = []; ys = []
+        for b in range(n_bins):
+            m = bin_ids == b
+            if m.sum() > 0:
+                xs.append(float(conf[m].mean())); ys.append(float(acc[m].mean()))
+        plt.figure(figsize=(5,5))
+        plt.plot([0,1],[0,1],'--',color='gray',label='perfect')
+        plt.plot(xs, ys, 'o-', label=method_name)
+        plt.xlabel('confidence'); plt.ylabel('accuracy'); plt.legend(); plt.grid(alpha=0.3)
+        plt.title(f'Reliability: {method_name}')
+        plt.savefig(path, dpi=100); plt.close()
+    except Exception:
+        pass
+    return path
+
+
 def model_summary(model):
     """返回模型参数量与每层形状。"""
     total = 0
