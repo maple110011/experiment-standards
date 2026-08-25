@@ -8,6 +8,10 @@
   - 分类: acc, NLL, Brier, ECE (top-label), sharpness (max_prob - 1/C)
   - 回归: RMSE, MAE, NLL (Gaussian), coverage95, sharpness95, ECE (50/80/90/95 区间)
 - 每个方法记录 train_time_s 和 gpu_memory_gb。
+- 数据切分索引必须落盘（`save_split_indices`），保证以后能精确重建同一切分。
+- 评估口径必须写进 `evaluation_config`：后验样本数、置信区间、ECE 分箱方式、
+  Laplace 的 link_approx/结构/prior 优化、温度缩放前后指标等。
+- 有分布偏移/OOD 评估时，结果写入 `evaluation_shift.json`，不要和原始测试集指标混在一起。
 
 ## 已测结果速查（DCU, 2026-08-25）
 
@@ -53,15 +57,23 @@
 ### VBLL (Harrison et al. 2024, diagonal 实现)
 - uci_protein: RMSE 4.383, coverage95 0.944, ECE 0.017, NLL 2.761 (40 epochs)
 - YearPredictionMSD: RMSE 8.94, coverage95 0.942, ECE 0.018, NLL 3.43 (20 epochs, 148.6s)
+- MoleculeNet 分类: BBBP acc .872/ECE .131/NLL .649; HIV acc .967/ECE .045/NLL .122
+  （HIV 上与 LLLA 持平, 优于 MAP/SWAG）
 - 对比: UCI protein 上点预测与 Ensemble 持平, 校准远好于 MCD/Ensemble/SWAG/LLLA;
   YearPredictionMSD 上优于 SWAG(小模型) 9.06。
-- 实现要点: 目标 y 必须先标准化, 否则方差学习会欠拟合。
+- 实现要点: 目标 y 必须先标准化, 否则方差学习会欠拟合；分类用 probit 观测模型。
 
 ### 分布偏移 (CIFAR-10 损坏集, 小 CNN)
 - MC Dropout 对 gaussian/blur/contrast 最稳健; Deep Ensemble 对 noise/pixelate 脆弱;
   所有方法 ECE 随 shift 上升。
 - MoleculeNet scaffold split: VBLL_probit (acc .817/ECE .187) 略优于 MAP (.804/.199),
   显著低于随机 split (.872/.133)。
+
+### 后校准 (temperature scaling)
+- 温度缩放能显著降低分类 ECE；缩放前后的 ECE/NLL 和温度值必须记录到
+  `calibration_temperature.json`，避免与原始指标混淆。
+- 回归任务先做 variance calibration（方差缩放）再比较 coverage；
+  不同方法的方差低估程度不同，校准后比较更公平。
 
 ## 经验解读
 

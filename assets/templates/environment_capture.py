@@ -53,8 +53,10 @@ def capture_environment():
         },
         "packages": {"torch": torch.__version__},
     }
-    # 常用科学计算/BDL 包版本 (已安装才记录)
-    for _pkg in ["numpy", "scipy", "sklearn", "pandas", "pyro", "laplace"]:
+    # 常用科学计算/BDL 包版本 (已安装才记录)。
+    # 完整依赖清单是环境漂移后唯一能复现实验的依据, 不要只记 torch。
+    for _pkg in ["numpy", "scipy", "sklearn", "pandas", "pyro", "laplace",
+                 "torchmetrics", "rdkit", "arviz", "tensorboard", "matplotlib"]:
         try:
             _mod = __import__(_pkg)
             env["packages"][_pkg] = getattr(_mod, "__version__", "unknown")
@@ -91,6 +93,13 @@ def capture_environment():
     else:
         env["gpu"]["backend"] = "cpu"
 
+    if not env["gpu"]["available"] and is_hip_build:
+        env["gpu"]["note"] = ("torch.cuda.is_available()=False in this shell. "
+                              "If /dev/kfd or /dev/dri is read-only (restricted shell), "
+                              "this is a false negative: run the actual GPU code via "
+                              "Jupyter kernel (gpu-runner/jupyter_exec.py) and capture "
+                              "environment there.")
+
     if torch.cuda.is_available():
         for i in range(torch.cuda.device_count()):
             env["gpu"][f"device_{i}"] = _gpu_device_dict(
@@ -113,6 +122,8 @@ def capture_environment():
     if rocm_env:
         env["rocm_env"] = rocm_env
     if getattr(torch.version, "hip", None):
+        # 即使环境变量没有 DTKROOT/HIP_PATH, 也要为 driver version 保留 rocm_env 对象
+        env.setdefault("rocm_env", {})
         try:
             _drv = subprocess.run(["hy-smi", "--showdriverversion"],
                                   capture_output=True, text=True, timeout=10)

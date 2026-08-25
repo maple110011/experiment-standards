@@ -4,7 +4,7 @@
 
 - 某些 agent shell 对 `/dev/kfd`、`/dev/dri/renderD128` 只读，`torch.cuda.is_available()` 会误报 False。
 - 解决: 通过 JupyterLab kernel 执行 GPU 代码。仓库里有现成工具:
-  `gpu-runner/jupyter_exec.py`。
+  `gpu-runner/jupyter_exec.py`（已随 skill 备份在 `scripts/jupyter_exec.py`）。
 - 长任务用 `setsid ... &` 后台运行，轮询 `results_partial.json` 和日志。
 
 ## 环境识别
@@ -24,6 +24,8 @@
 ## Pyro 在 DCU 上的坑
 
 - 模型内部先验参数必须显式创建在 `x.device` 上，否则 AutoNormal guide 参数留在 CPU。
+- 分类模型优先用 `OneHotCategorical` 观测（比 `Categorical` 更容易正确取后验预测
+  概率）；logits 和 obs 的形状必须与 plate 对齐，否则 DCU 上报形状/设备错误。
 - Checkpoint 恢复: `pyro.get_param_store().set_state()` 后参数通常在 CPU
   （因为 `torch.load(map_location="cpu")`），必须逐个 `.to(device)` 移回:
   ```python

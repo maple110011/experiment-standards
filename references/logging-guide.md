@@ -21,6 +21,23 @@ PyTorch/CUDA/HIP 版本、磁盘可用空间、运行时环境（Colab/Local）�
 CUDA / ROCm(HIP, 含海光 DCU) / MPS / CPU-only 四种后端。依赖 `psutil`
 （可选，未安装时跳过 CPU/内存/磁盘详细信息）。
 
+> ⚠️ **依赖版本必须记全**：`capture_environment()` 已记录 torch/numpy/scipy/
+> sklearn/pandas/pyro/laplace/torchmetrics/rdkit/arviz/tensorboard/matplotlib
+> 版本，以及 `torch.version.hip`、`hy-smi` 驱动版本；其他关键依赖也要写进
+> 环境记录。环境漂移后没有版本清单几乎无法复现。
+
+> ⚠️ **受限 shell 会误报无 GPU**：如果本机是海光 DCU/ROCm 且 shell 对
+> `/dev/kfd`、`/dev/dri/renderD128` 只读，`torch.cuda.is_available()` 会返回
+> `False`（假象）。不要在 bash 里据此判断没卡；要用
+> `python3 gpu-runner/jupyter_exec.py --file script.py` 通过 Jupyter kernel
+> 执行 GPU 代码，并在 kernel 里采集环境。
+
+> ⚠️ **环境卫生**：在 HIP/ROCm 环境的虚拟环境里装包时，凡依赖 torch 的 PyPI 包
+> 都可能把 HIP torch 覆盖成 CUDA/CPU torch。用 `pip install --no-deps` 装，
+> 装完确认 `torch.version.hip` 没变、`torch.cuda.is_available()` 仍为 True。
+> 例如 `laplace-torch` 要装 `curvlinops-for-pytorch==2.0.0`（3.x 不兼容）、
+> `torchmetrics` 和 `et_xmlfile`；装完必须检查 torch 未被替换。
+
 ## 2. 日志系统 ⚠️
 
 三级日志架构 — 训练日志(完整) + 错误日志(单独) + 控制台:

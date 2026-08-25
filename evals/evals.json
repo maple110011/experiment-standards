@@ -36,6 +36,27 @@
       "expected_output": "使用 experiment_recorder.py 生成 runs/<experiment>/run_<timestamp>/ 记录包：run_manifest.json、code/ 快照、events.jsonl、training/<method>_metrics.csv、tb/ TensorBoard events、predictions/*_probs.npy、results_partial.json、evaluation_report.json、figures/ 校准曲线、checkpoints/ 权重",
       "files": ["assets/templates/experiment_recorder.py", "references/recording-guide.md"],
       "auto_check": "python evals/run_evals.py"
+    },
+    {
+      "id": 6,
+      "prompt": "我要跑一个 30 分钟的大模型实验，怎么保证中途不丢结果、batch 选多大、显存和算力怎么监控？",
+      "expected_output": "先做 1-epoch 基准（耗时/峰值显存/loss下降）再定全量配置；长任务 setsid/后台启动且超时留余量；增量写 results_partial.json；gpu_memory_gb 记录 + 定期看 allocated/reserved；大数据转 .npz 缓存；大 batch 优先并做 lr 线性/平方根缩放，先测吞吐再定 batch",
+      "files": ["references/long-running-guide.md", "references/training-control.md"],
+      "auto_check": "grep -q '1-epoch' references/long-running-guide.md && grep -q 'setsid' references/long-running-guide.md && grep -q '平方根' references/training-control.md"
+    },
+    {
+      "id": 7,
+      "prompt": "我跑完长实验才发现预测概率没保存，换指标/补校准图都要重跑。以后怎么避免？记录包里还需要保存哪些东西？",
+      "expected_output": "使用 experiment_recorder：分类 save_probs、回归 save_regression_predictions、采样类 save_samples_npz 保存预测分布；save_split_indices 保存切分；每方法完成 update_results_json；update_shift_results_json 写分布偏移结果；save_temperature_scaling 写后校准；log_exception 写异常堆栈；save_model_weights 保存 best/final 权重；log_epoch 逐 epoch 写 train/val 指标并写 TensorBoard",
+      "files": ["assets/templates/experiment_recorder.py", "references/recording-guide.md"],
+      "auto_check": "grep -q 'save_regression_predictions' assets/templates/experiment_recorder.py && grep -q 'save_temperature_scaling' assets/templates/experiment_recorder.py && grep -q 'save_split_indices' references/recording-guide.md"
+    },
+    {
+      "id": 8,
+      "prompt": "在受限 shell 里 torch.cuda.is_available() 返回 False，但机器上明明有海光 DCU，怎么才能跑 GPU 实验并记录真实环境？",
+      "expected_output": "不要相信 bash 里的 torch.cuda.is_available()；受限 shell 对 /dev/kfd、/dev/dri 只读会误报 False。用 gpu-runner/jupyter_exec.py 通过 Jupyter kernel 执行 GPU 代码，并在 kernel 里调用 capture_environment；长任务用 setsid 包 jupyter_exec 并轮询 results_partial.json",
+      "files": ["references/logging-guide.md", "references/long-running-guide.md", "bayes-dl-dcu/references/dcu-adaptation.md"],
+      "auto_check": "grep -q 'jupyter_exec.py' references/long-running-guide.md && grep -q 'Jupyter kernel' references/logging-guide.md"
     }
   ]
 }

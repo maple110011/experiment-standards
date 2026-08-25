@@ -75,8 +75,8 @@ Pyro 的 optimizer state 恢复较复杂，实践中通常重新创建 optimizer
 | **保存完整状态** | 参数 + optimizer + RNG + config |
 | **保留最佳** | 基于验证集指标, 不是训练 loss |
 | **保留最近 N 个** | `keep_recent_n` 控制磁盘占用，`ckpt_best.tar` 始终保留 |
-| **完整性校验** | try-except 包裹 torch.load |
-| **自动清理** | 仅保留最近 N 个, 防止磁盘爆满 |
+| **完整性校验** | 每次 `save` 自动写 `.sha256` sidecar；`load` 从最新到最旧尝试，损坏自动回退到上一个可用 checkpoint |
+| **自动清理** | 仅保留最近 N 个及其 sidecar, 防止磁盘爆满 |
 | **云端备份** | 重要结果同步到云存储 |
 
 ## 4. CheckpointManager API
@@ -86,6 +86,6 @@ CheckpointManager(save_dir="checkpoints", keep_recent_n=3, mode="min")
 # mode: "min" — 指标越小越好 (loss/rmse)
 #       "max" — 指标越大越好 (accuracy/ELBO/对数似然)
 # save(epoch, config, model_state, optimizer_state, rng_state, is_best=False)
-# load(path=None) -> ckpt | None     # path=None 时自动挑最新 ckpt_epoch*.tar
+# load(path=None) -> ckpt | None     # path=None 时从最新到最旧尝试加载, 损坏自动回退
 # update_best(epoch, val_metric) -> bool
 ```

@@ -13,7 +13,9 @@ experiment_recorder.py — 一般性大型实验记录工具。
 
 用法:
     from experiment_recorder import make_run_dir, log_event, log_epoch, \
-        update_results_json, save_probs, gpu_memory, model_summary
+        update_results_json, save_probs, save_regression_predictions, \
+        save_samples_npz, save_split_indices, update_shift_results_json, \
+        save_temperature_scaling, save_model_weights, gpu_memory, model_summary
 
     run_dir = make_run_dir(
         "runs", "my_experiment",
@@ -102,7 +104,7 @@ def snapshot_code(code_paths, dest_dir):
 def make_run_dir(base_dir, experiment, config=None, args=None, code_paths=None,
                  dataset_info=None, env=None, notes="", run_id=None):
     """创建标准 run 目录并写入 run_manifest.json。返回 run_dir。"""
-    run_id = run_id or datetime.now().strftime("run_%Y%m%d_%H%M%S")
+    run_id = run_id or datetime.now().strftime("run_%Y%m%d_%H%M%S_%f")
     run_dir = os.path.join(os.path.abspath(base_dir), str(experiment), run_id)
     for sub in ("checkpoints", "predictions", "training", "figures", "tb"):
         os.makedirs(os.path.join(run_dir, sub), exist_ok=True)
@@ -234,6 +236,43 @@ def update_results_json(run_dir, filename, method_name, result):
         json.dump(data, f, indent=2, ensure_ascii=False, default=str)
 
 
+def update_shift_results_json(run_dir, shift_name, method_name, result):
+    """增量写入分布偏移/OOD 评估结果到 evaluation_shift.json。"""
+    path = os.path.join(run_dir, "evaluation_shift.json")
+    data = {}
+    if os.path.exists(path):
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except Exception:
+            pass
+    if "shifts" not in data:
+        data["shifts"] = {}
+    data["shifts"].setdefault(shift_name, {})[method_name] = result
+    data["last_updated"] = now_iso()
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False, default=str)
+
+
+def save_temperature_scaling(run_dir, method_name, temperature, before, after, extra=None):
+    """记录后校准 (temperature scaling / variance calibration) 结果。"""
+    path = os.path.join(run_dir, "calibration_temperature.json")
+    data = {}
+    if os.path.exists(path):
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except Exception:
+            pass
+    entry = {"temperature": temperature, "before": before, "after": after}
+    if extra:
+        entry.update(extra)
+    data[method_name] = entry
+    data["last_updated"] = now_iso()
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False, default=str)
+
+
 def save_probs(run_dir, method_name, probs, y_true, num_classes, extra=None):
     """保存后验预测概率与真实标签 (可复算任意指标)。"""
     import numpy as np
@@ -250,6 +289,26 @@ def save_probs(run_dir, method_name, probs, y_true, num_classes, extra=None):
     if extra:
         meta.update(extra)
     with open(os.path.join(pred_dir, f"{method_name}_meta.json"), "w") as f:
+        json.dump(meta, f, indent=2, ensure_ascii=False, default=str)
+
+
+def save_regression_predictions(run_dir, method_name, mean, var, y_true, extra=None):
+    """保存回归预测均值与方差 (可复算 RMSE/coverage/NLL/calibration 等)。"""
+    import numpy as np
+    pred_dir = os.path.join(run_dir, "predictions")
+    os.makedirs(pred_dir, exist_ok=True)
+    np.save(os.path.join(pred_dir, f"{method_name}_mean.npy"), np.asarray(mean, dtype=np.float32))
+    np.save(os.path.join(pred_dir, f"{method_name}_var.npy"), np.asarray(var, dtype=np.float32))
+    np.save(os.path.join(pred_dir, f"{method_name}_ytrue.npy"), np.asarray(y_true))
+    meta = {
+        "method": method_name, "saved_at": now_iso(),
+        "mean_shape": list(np.asarray(mean).shape),
+        "var_shape": list(np.asarray(var).shape),
+        "y_true_shape": list(np.asarray(y_true).shape),
+    }
+    if extra:
+        meta.update(extra)
+    with open(os.path.join(pred_dir, f"{method_name}_reg_meta.json"), "w") as f:
         json.dump(meta, f, indent=2, ensure_ascii=False, default=str)
 
 
@@ -349,6 +408,18 @@ def plot_reliability_diagram(run_dir, method_name, probs, y_true, num_classes=No
         plt.savefig(path, dpi=100); plt.close()
     except Exception:
         pass
+    return path
+
+
+def save_model_weights(run_dir, method_name, model_or_state, filename=None, is_best=True):
+    """保存模型权重到 checkpoints/。可传 model (有 state_dict) 或 state_dict。"""
+    import torch
+    ckpt_dir = os.path.join(run_dir, "checkpoints")
+    os.makedirs(ckpt_dir, exist_ok=True)
+    state = model_or_state.state_dict() if hasattr(model_or_state, "state_dict") else model_or_state
+    filename = filename or (f"{method_name}_best.pt" if is_best else f"{method_name}_final.pt")
+    path = os.path.join(ckpt_dir, filename)
+    torch.save(state, path)
     return path
 
 

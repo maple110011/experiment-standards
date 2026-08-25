@@ -89,11 +89,13 @@ az.to_netcdf(az.from_pyro(mcmc), "posterior.nc")
 |------|:---:|------|
 | `environment.json` | ✅ | 硬件环境 (CPU/GPU/RAM/版本) |
 | `seed.json` | ✅ | 随机种子 |
+| `experiment_metadata.json` | ✅ | 元数据 (环境+config+数据集) |
 | `training.log` | ✅ | 完整日志 |
 | `errors.log` | ✅ | 错误日志 (空文件=无错误) |
 | `metrics.csv` | ✅ | 逐epoch指标 |
-| `checkpoints/ckpt_best.tar` | ✅ | 最佳checkpoint |
-| `best_model.pt` | ✅ | 最佳权重 |
+| `checkpoints/ckpt_epoch*.tar` | 建议 | 中间checkpoint (定期保存) |
+| `checkpoints/ckpt_best.tar` | ✅ | 最佳checkpoint (含完整状态) |
+| `best_model.pt` | ✅ | 最佳权重 (仅参数, 轻量) |
 | `final_model.pt` | | 最终权重 |
 | `evaluation_report.json` | ✅ | 评估报告 |
 | `figures/*.png` | ✅ | 图表 |
