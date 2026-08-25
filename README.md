@@ -17,7 +17,8 @@
 
 ## 适用框架
 
-框架无关，内置 PyTorch 和 Pyro 示例。贝叶斯深度学习方法选择、校准指标、DCU 适配经验等**领域内容**在配套 skill `bayes-dl-dcu` 中。
+框架无关，内置 PyTorch 和 Pyro 示例。贝叶斯深度学习方法选择、校准指标、DCU 适配经验等**领域内容**在本仓库子目录
+[`bayes-dl-dcu/`](./bayes-dl-dcu/) 中。
 
 ## 文件结构
 
@@ -77,9 +78,28 @@ save_probs(run_dir, "MAP", probs, y_true, num_classes)
 每个 run 目录包含：`run_manifest.json`、`code/`、`training/*.csv`、`predictions/`、
 `results_partial.json`、`evaluation_report.json`、`tb/`（TensorBoard）、`figures/`。
 
-## 与 bayes-dl-dcu 的关系
+## 仓库结构：两个 skill
 
-- `experiment-standards`：实验工程基础设施（本仓库）。
+```
+experiment-standards/
+├── SKILL.md                        # skill 1: 实验工程标准化（本根目录）
+├── README.md
+├── assets/templates/...
+├── references/...
+├── evals/...
+└── bayes-dl-dcu/                   # skill 2: 贝叶斯深度学习 / DCU 领域经验
+    ├── SKILL.md
+    ├── references/
+    │   ├── methods-and-results.md
+    │   ├── dcu-adaptation.md
+    │   ├── batch-size-guidance.md
+    │   ├── large-model-experience.md
+    │   └── research-topics.md
+    └── evals/evals.json
+```
+
+- `experiment-standards`：实验工程基础设施（checkpoint/日志/环境/评估/记录包）。
 - `bayes-dl-dcu`：贝叶斯深度学习方法比较、不确定性校准、分布偏移/OOD、DCU 适配、大模型经验。
 
-两者配合使用：BDL 实验脚本按本 skill 规范产出记录，方法选择与校准指标按 `bayes-dl-dcu` 执行。
+两者配合使用：BDL 实验脚本按根 skill 规范产出记录，方法选择与校准指标按
+`bayes-dl-dcu` 执行。
