@@ -152,6 +152,14 @@ def log_event(run_dir, event_type, **data):
     return line
 
 
+def log_exception(run_dir, exc_info=None):
+    """把异常堆栈写入 errors.log, 返回 message。"""
+    import traceback
+    msg = traceback.format_exc() if exc_info is None else "".join(traceback.format_exception(*exc_info))
+    log_error(run_dir, "EXCEPTION\n" + msg)
+    return msg
+
+
 def log_error(run_dir, message):
     with open(os.path.join(run_dir, "errors.log"), "a", encoding="utf-8") as f:
         f.write(f"{now_iso()} [ERROR] {message}\n")
@@ -283,6 +291,33 @@ def save_split_indices(run_dir, train_idx, val_idx, test_idx, extra=None):
 # ---------------------------------------------------------------------------
 # 模型 / 硬件
 # ---------------------------------------------------------------------------
+def plot_regression_calibration(run_dir, method_name, mean, var, y_true, levels=(0.5,0.8,0.9,0.95)):
+    """回归校准曲线: 名义覆盖率 vs 经验覆盖率, 保存到 figures/。"""
+    import numpy as np
+    mean = np.asarray(mean).reshape(-1); var = np.asarray(var).reshape(-1); y = np.asarray(y_true).reshape(-1)
+    std = np.sqrt(np.maximum(var, 1e-12))
+    z = {0.5:0.674, 0.8:1.282, 0.9:1.645, 0.95:1.96}
+    xs = [lv for lv in levels]; ys = []
+    for lv in levels:
+        zz = z[lv]; lo = mean - zz*std; hi = mean + zz*std
+        ys.append(float(np.mean((y >= lo) & (y <= hi))))
+    fig_dir = os.path.join(run_dir, "figures"); os.makedirs(fig_dir, exist_ok=True)
+    path = os.path.join(fig_dir, f"calibration_{method_name}.png")
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        plt.figure(figsize=(5,5))
+        plt.plot([0,1],[0,1],'--',color='gray',label='perfect')
+        plt.plot(xs, ys, 'o-', label=method_name)
+        plt.xlabel('nominal coverage'); plt.ylabel('empirical coverage')
+        plt.legend(); plt.grid(alpha=0.3); plt.title(f'Regression calibration: {method_name}')
+        plt.savefig(path, dpi=100); plt.close()
+    except Exception:
+        pass
+    return path
+
+
 def plot_reliability_diagram(run_dir, method_name, probs, y_true, num_classes=None, n_bins=10):
     """画 reliability diagram (置信度 vs 真实准确率) 并保存到 figures/。"""
     import numpy as np
