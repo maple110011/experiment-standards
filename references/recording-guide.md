@@ -20,7 +20,9 @@ runs/<experiment>/run_<YYYYMMDD_HHMMSS>/
 ├── errors.log                 # 错误日志
 ├── training/
 │   └── <method>_metrics.csv   # 每方法逐 epoch 指标
+├── tb/                        # TensorBoard events (log_epoch 自动写入)
 ├── checkpoints/
+│   └── <method>_best.pt       # (推荐) 模型权重, 便于后续 OOD/迁移/诊断
 ├── predictions/
 │   ├── <method>_probs.npy     # 后验预测概率
 │   ├── <method>_ytrue.npy
@@ -28,6 +30,8 @@ runs/<experiment>/run_<YYYYMMDD_HHMMSS>/
 ├── results_partial.json       # 每完成一个方法立即增量落盘
 ├── evaluation_report.json
 └── figures/
+    ├── reliability_<method>.png     # 分类校准曲线
+    └── calibration_<method>.png     # 回归覆盖率校准曲线
 ```
 
 ## 基本用法
@@ -35,7 +39,9 @@ runs/<experiment>/run_<YYYYMMDD_HHMMSS>/
 ```python
 from experiment_recorder import (
     make_run_dir, log_event, log_epoch, update_results_json,
-    save_probs, save_split_indices, model_summary, gpu_memory,
+    save_probs, save_samples_npz, save_split_indices,
+    plot_reliability_diagram, plot_regression_calibration,
+    log_exception, model_summary, gpu_memory,
 )
 
 run_dir = make_run_dir(
@@ -59,7 +65,19 @@ update_results_json(run_dir, "results_partial.json", "MAP", {"test_acc": acc})
 
 # 预测概率必须保存，以后可复算任何指标、画任何图
 save_probs(run_dir, "MAP", probs, y_true, num_classes)
-
+# 采样类方法额外保存原始样本
+save_samples_npz(run_dir, "MAP", samples, y_true)
+# 自动生成校准曲线
+plot_reliability_diagram(run_dir, "MAP", probs, y_true, num_classes)      # 分类
+plot_regression_calibration(run_dir, "MAP", mean, var, y_true)            # 回归
+# 异常时写 errors.log
+try:
+    ...
+except Exception:
+    log_exception(run_dir)
+    raise
+# 推荐保存模型权重
+torch.save(model.state_dict(), os.path.join(run_dir, "checkpoints", "MAP_best.pt"))
 # 最终报告
 json.dump(report, open(os.path.join(run_dir, "evaluation_report.json"), "w"))
 ```
@@ -74,3 +92,7 @@ json.dump(report, open(os.path.join(run_dir, "evaluation_report.json"), "w"))
 6. **评估口径**：在报告中写清后验样本数、置信区间、ECE 分箱等 evaluation_config。
 7. **环境与硬件**：`make_run_dir` 会自动调用 `environment_capture`，并在结果里记录
    `gpu_memory`；模型结构用 `model_summary` 记录。
+8. **TensorBoard**：`log_epoch` 自动把标量写入 `run_dir/tb/`，无需额外代码。
+9. **异常留痕**：所有 `except` 块调用 `log_exception(run_dir)`，把完整堆栈写入
+   `errors.log`，不要只 print。
+10. **模型权重**：默认保存 best/final 权重到 `checkpoints/`；磁盘成本远低于重训成本。
