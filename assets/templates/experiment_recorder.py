@@ -31,6 +31,9 @@ experiment_recorder.py — 一般性大型实验记录工具。
 import os, sys, json, csv, hashlib, shutil, time, subprocess
 from datetime import datetime
 
+# TensorBoard 写入器缓存 (run_dir -> SummaryWriter)
+_TB_WRITERS = {}
+
 
 # ---------------------------------------------------------------------------
 # 基础
@@ -101,7 +104,7 @@ def make_run_dir(base_dir, experiment, config=None, args=None, code_paths=None,
     """创建标准 run 目录并写入 run_manifest.json。返回 run_dir。"""
     run_id = run_id or datetime.now().strftime("run_%Y%m%d_%H%M%S")
     run_dir = os.path.join(os.path.abspath(base_dir), str(experiment), run_id)
-    for sub in ("checkpoints", "predictions", "training", "figures"):
+    for sub in ("checkpoints", "predictions", "training", "figures", "tb"):
         os.makedirs(os.path.join(run_dir, sub), exist_ok=True)
 
     if env is None:
@@ -154,8 +157,19 @@ def log_error(run_dir, message):
         f.write(f"{now_iso()} [ERROR] {message}\n")
 
 
+def _tb_writer(run_dir):
+    """获取 run_dir 对应的 TensorBoard writer (惰性创建)。"""
+    try:
+        from torch.utils.tensorboard import SummaryWriter
+    except Exception:
+        return None
+    if run_dir not in _TB_WRITERS:
+        _TB_WRITERS[run_dir] = SummaryWriter(log_dir=os.path.join(run_dir, "tb"))
+    return _TB_WRITERS[run_dir]
+
+
 def log_epoch(run_dir, method_name, epoch, **metrics):
-    """追加一行训练指标到 training/<method>_metrics.csv。"""
+    """追加一行训练指标到 training/<method>_metrics.csv, 同时写 TensorBoard。"""
     path = os.path.join(run_dir, "training", f"{method_name}_metrics.csv")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     fields = ["epoch"] + sorted(metrics.keys())
@@ -165,6 +179,30 @@ def log_epoch(run_dir, method_name, epoch, **metrics):
         if need_header:
             w.writeheader()
         w.writerow({"epoch": epoch, **metrics})
+    writer = _tb_writer(run_dir)
+    if writer is not None:
+        for k, v in metrics.items():
+            if isinstance(v, (int, float)):
+                writer.add_scalar(f"train/{method_name}/{k}", float(v), int(epoch))
+        writer.flush()
+
+
+def log_scalar(run_dir, tag, value, step):
+    """直接写一个 TensorBoard 标量。"""
+    writer = _tb_writer(run_dir)
+    if writer is not None:
+        writer.add_scalar(tag, float(value), int(step))
+        writer.flush()
+
+
+def close_tb(run_dir):
+    """关闭 run_dir 的 TensorBoard writer (可选)。"""
+    writer = _TB_WRITERS.pop(run_dir, None)
+    if writer is not None:
+        try:
+            writer.close()
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------------------
