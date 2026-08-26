@@ -21,20 +21,19 @@ argument-hint: '[任务: BDL方法选择 / 方法对比 / 不确定性校准 / D
 1. **公平比较**：所有方法使用相同模型结构、数据切分、训练预算和评估口径。
 2. **预测分布必须落盘**：保存每个方法的预测均值/方差/样本（`experiment_recorder`）。
 3. **校准指标统一**：分类用 acc/NLL/Brier/ECE/sharpness；回归用 RMSE/MAE/NLL/coverage95/sharpness95/ECE。
+   指标计算用 `experiment-standards` 的 `assets/templates/metrics.py`。
 4. **长实验要增量记录**：每完成一个方法立即写 `results_partial.json` 和预测文件。
 5. **DCU 上先 warmup 再计时**：首次算子调用会触发内核编译。
 
 ## 工作流
 
-1. 读 `references/methods-and-results.md` 选择方法组合和基准配置。
+1. 读 `references/methods-and-results.md` 确认公平对比协议。
 2. 读 `references/dcu-adaptation.md` 确认设备访问、版本兼容、常见坑。
 3. 用 `experiment-standards` 的 `experiment_recorder.py` 创建 run 目录，
    数据切分后立即 `save_split_indices`。
-4. 从 `bayes-dcu/` 下复制对应脚本模板：
-   - 表格回归 `bdl_tabular.py`
-   - 分子分类 `bdl_moleculenet.py`
-   - 时序一步预测 `bdl_timeseries.py`
-   - 图像基准 `bdl_cnn_cifar.py` / `bdl_vgg16bn_cifar.py`
+4. 实现所选 BDL 方法（MC Dropout / Deep Ensemble / SWAG / Laplace / SGHMC / SVI 等）。
+   工程侧复用 `experiment-standards` 的模板：`checkpoint_manager.py`、`early_stopper.py`、
+   `environment_capture.py`。
 5. 每完成一个方法：`update_results_json` + 保存预测分布
    （分类 `save_probs`、回归 `save_regression_predictions`、采样类 `save_samples_npz`）；
    每个 eval_interval：`log_epoch` 记录 train/val 指标。
@@ -44,33 +43,33 @@ argument-hint: '[任务: BDL方法选择 / 方法对比 / 不确定性校准 / D
 
 ## 方法速查
 
-| 方法 | 适用 | 经验要点 |
-|------|------|----------|
-| MAP + 训练残差方差 | 基线 | 小样本回归上常常是可靠校准基线 |
-| MC Dropout | 小样本分类 | 需要较长训练；大样本 30 epochs 不够 |
-| Deep Ensemble | 通用 | 精度最稳；方差偶尔低估 |
-| SWAG-Diagonal | 大样本回归 | YearPredictionMSD 最佳；需要足够 epochs |
-| Last-Layer Laplace | 小样本分类/大样本分类 | HIV 上最好；全量 last-layer 在大样本回归会 Cholesky 失败，在 CIFAR 上过慢 |
-| SGHMC | 探索 | 当前实现易发散，需要梯度裁剪/低 lr/burn-in |
-| Pyro SVI AutoNormal | 小模型 | 可跑；校准一般 |
-| Pyro SVI AutoLowRank | 小模型 | digits 上显著优于 AutoNormal |
-| VBLL (变分贝叶斯最后一层) | 回归/分类 | UCI protein 上 RMSE 4.38/coverage .944/ECE .017, 一次前向; 见 Harrison 2024 |
-| Pyro NUTS | 小模型 | DCU 上能跑但很慢，暂不实用 |
-| Temperature scaling | 后校准 | 分类/回归都能做；缩放前后 ECE/NLL 记录到 `calibration_temperature.json` |
+| 方法 | 说明 |
+|------|------|
+| MAP + 训练残差方差 | 点估计 + 残差方差，作为不确定度基线 |
+| MC Dropout | dropout 采样近似后验；通常需要较长训练 |
+| Deep Ensemble | 多模型集成，通常精度稳定 |
+| SWAG-Diagonal | SGD 轨迹拟合对角高斯，需足够 epochs 收敛 |
+| Last-Layer Laplace | 对最后一层权重做 Laplace；全量在大模型/大样本上计算成本高 |
+| SGHMC | 随机梯度 MCMC，通常需梯度裁剪/低 lr/burn-in 稳定 |
+| Pyro SVI AutoNormal | 对角高斯变分近似 |
+| Pyro SVI AutoLowRank | 低秩协方差变分近似 |
+| VBLL | 变分贝叶斯最后一层，单次前向（Harrison et al. 2024） |
+| Pyro NUTS | Hamiltonian MCMC，通常较慢 |
+| Temperature scaling | 后校准：单一温度参数缩放 logits/方差，缩放前后指标分别记录 |
 
 ## 数据选择
 
-- AI4Science：MoleculeNet（BBBP/HIV 已测）；FLIP 蛋白质工程（待上传）
-- 大样本回归：YearPredictionMSD（515k×90，已测）
-- UCI 小样本回归：protein / energy / power / wine / concrete（已测前三）
-- 时序：electricity / exchange_rate / solar / traffic（已测前二）
-- 图像基准：CIFAR-10（小 CNN 与 VGG16-BN 已测）
+- AI4Science：MoleculeNet（如 BBBP/HIV）；FLIP 蛋白质工程
+- 大样本回归：YearPredictionMSD
+- UCI 小样本回归：protein / energy / power / wine / concrete
+- 时序：electricity / exchange_rate / solar / traffic
+- 图像基准：CIFAR-10
 
 ## 参考资源
 
 | 资源 | 内容 |
 |------|------|
-| [methods-and-results.md](./references/methods-and-results.md) | 方法对比协议、已测结果与解读 |
+| [methods-and-results.md](./references/methods-and-results.md) | 方法公平对比协议 |
 | [dcu-adaptation.md](./references/dcu-adaptation.md) | 海光 DCU 适配经验 |
 | [large-model-experience.md](./references/large-model-experience.md) | 大参数模型训练经验 |
 | [batch-size-guidance.md](./references/batch-size-guidance.md) | batch size 选择与空间换时间 |

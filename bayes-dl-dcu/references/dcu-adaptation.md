@@ -4,7 +4,7 @@
 
 - 某些 agent shell 对 `/dev/kfd`、`/dev/dri/renderD128` 只读，`torch.cuda.is_available()` 会误报 False。
 - 解决: 通过 JupyterLab kernel 执行 GPU 代码。仓库里有现成工具:
-  `gpu-runner/jupyter_exec.py`（已随 skill 备份在 `scripts/jupyter_exec.py`）。
+  `scripts/jupyter_exec.py`。
 - 长任务用 `setsid ... &` 后台运行，轮询 `results_partial.json` 和日志。
 
 ## 环境识别
@@ -16,10 +16,8 @@
 
 ## 性能特征
 
-- fp32 matmul: 2048→43.9 / 4096→52.5 / 8192→53.5 TFLOPS。
-- MLP 训练步 (batch4096, hidden256): 1.55ms DCU vs 2530ms CPU。
-- BNN SVI step (n=512, hidden20): 21.4ms DCU vs 129.6ms CPU。
 - **首次调用新算子会触发内核编译（数百 ms），基准测试必须先 warmup。**
+- DCU 上 GPU 计算显著快于 CPU；具体数值以本机实测为准。
 
 ## Pyro 在 DCU 上的坑
 

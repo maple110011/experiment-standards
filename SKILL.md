@@ -169,8 +169,8 @@ Agent 生成的代码必须在训练结束后产生以下文件：
 - **先测 1-epoch 基准**：测出单 epoch 耗时 / 峰值显存 / loss 下降速度，再外推全量配置
 - **后台启动 + 超时余量**：`setsid ... &`，`--timeout` 大于预计总时长，轮询 `results_partial.json`
 - **受限 shell 跑 DCU/ROCm**：bash 里 `torch.cuda.is_available()` 可能是 False（假象），
-  必须走 `gpu-runner/jupyter_exec.py` 的 Jupyter kernel，并在 kernel 里采集环境
-  （该脚本随 skill 备份在 `scripts/jupyter_exec.py`，独立部署时可复制到工作区）
+  必须走 `scripts/jupyter_exec.py` 的 Jupyter kernel，并在 kernel 里采集环境
+  （独立部署时把该脚本复制到工作区）
 - **增量落盘**：每完成一个方法/阶段立即写 `results_partial.json`
 - **显存与算力分开监控**：结果里记录 `gpu_memory_gb`，训练中定期看 allocated/reserved
 - **大数据先转 `.npz` 缓存**，避免每 epoch 重复解析
@@ -218,6 +218,7 @@ Agent 生成的代码必须在训练结束后产生以下文件：
 | capture_environment() 函数 | `assets/templates/environment_capture.py` |
 | generate_evaluation_report() / generate_experiment_metadata() | `assets/templates/evaluation_report.py` |
 | experiment_recorder（大型实验记录包） | `assets/templates/experiment_recorder.py` |
+| ECE/NLL/Brier/sharpness/coverage 指标 | `assets/templates/metrics.py` |
 
 ## 参考资源
 

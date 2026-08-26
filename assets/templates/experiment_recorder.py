@@ -193,7 +193,8 @@ def log_epoch(run_dir, method_name, epoch, **metrics):
     if writer is not None:
         for k, v in metrics.items():
             if isinstance(v, (int, float)):
-                writer.add_scalar(f"train/{method_name}/{k}", float(v), int(epoch))
+                scope = "val" if str(k).startswith("val_") else "train"
+                writer.add_scalar(f"{scope}/{method_name}/{k}", float(v), int(epoch))
         writer.flush()
 
 

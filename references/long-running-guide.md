@@ -19,12 +19,8 @@
 - 峰值显存（`torch.cuda.memory_allocated/reserved`）→ 判断会不会 OOM
 - loss 下降速度 → 判断学习率是否在合理区间
 
-> 为什么：一次 270M MLP 实验先测 1 epoch（77s）再启动，避免了全量配置跑 30
-> 分钟才发现 batch 太小或 lr 不对。这一步的成本通常 <1 分钟，收益是省下数小时。
-
-实测参考（海光 DCU 64GB）：270M MLP batch512 单 epoch 77s / 显存 5.2GB；
-VGG16-BN(14.7M) batch128 约 10.7s/epoch。**64GB 显存对中小模型远不是瓶颈，
-计算时间才是**——所以重点测时间，而不是只盯着显存。
+> 为什么：先测 1 epoch（耗时/显存/loss 下降）再启动，避免全量配置跑很久才发现
+> batch 太小或 lr 不对。这一步的成本通常 <1 分钟，收益是省下数小时。
 
 ## 2. 长任务必须后台启动 + 超时留余量
 
@@ -37,11 +33,10 @@ setsid bash -c 'python train.py > /tmp/run.log 2>&1' &
 
 # 受限 shell + DCU/ROCm: bash 里 torch.cuda.is_available() 可能是 False (假象),
 # 必须通过 Jupyter kernel 执行 GPU 代码; --timeout 要留足余量
-setsid bash -c 'python3 gpu-runner/jupyter_exec.py --file train.py --timeout 7200 > /tmp/run.log 2>&1' &
+setsid bash -c 'python3 scripts/jupyter_exec.py --file train.py --timeout 7200 > /tmp/run.log 2>&1' &
 ```
 
-> 如果 skill 被部署到其它工作区，`gpu-runner/jupyter_exec.py` 不在工作区根目录时，
-> 使用随 skill 分发的 `scripts/jupyter_exec.py`（与工作区版相同），复制到当前
+> `scripts/jupyter_exec.py` 随 skill 分发；部署到其它工作区时，把它复制到当前
 > 工作区后同样调用。
 
 > 为什么：Jupyter kernel 在启动它的 shell 被重置后仍会继续跑；但若超时参数
@@ -84,8 +79,6 @@ setsid bash -c 'python3 gpu-runner/jupyter_exec.py --file train.py --timeout 720
 - **lr 缩放**：batch 翻 N 倍，lr 线性（×N）或平方根（×√N）缩放，见
   [training-control.md](./training-control.md) §3。
 - **先测吞吐再定 batch**：不同模型/算子的吞吐曲线不同；`2 的幂不是魔法`——
-  实测 270M MLP 上 batch 8192 比 512 快 2.7 倍且 RMSE 更好（18.3 vs 29.7），
-  但 CIFAR 小 CNN 上 batch 512 比 128 只快 1.34 倍且精度略降 0.5-1 点。
   每个模型都要实测，不能直接外推。
 - **BDL 方法的 batch 敏感性不同**（MC Dropout/SGHMC 依赖小 batch 噪声、
   SWAG 需要更多 epochs 收集快照）：见

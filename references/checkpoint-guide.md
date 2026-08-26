@@ -44,8 +44,9 @@ ckpt_mgr.save(final_epoch, CONFIG,
               capture_rng_state())
 ```
 
-> ⚠️ RNG 状态必须包含 torch + numpy + python random 三者。数据切分、数据增强、
-> 噪声注入都依赖 numpy/python random; 只保存 torch RNG 无法完整复现。
+> ⚠️ RNG 状态必须包含 torch(CPU) + CUDA/HIP + numpy + python random 四者。数据切分、
+> 数据增强、噪声注入依赖 numpy/python random; GPU 上的初始化/采样依赖 CUDA/HIP RNG。
+> `capture_rng_state()` / `restore_rng_state()` 已自动处理这四者。
 
 ## 2. Pyro 特殊处理
 

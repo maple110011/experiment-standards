@@ -20,12 +20,18 @@ from datetime import datetime
 
 
 def capture_rng_state():
-    """返回可 pickle 的完整 RNG 状态 (torch + numpy + python random)。"""
-    return {
+    """返回可 pickle 的完整 RNG 状态 (torch CPU + CUDA/HIP + numpy + python random)。"""
+    state = {
         "torch": torch.get_rng_state(),
         "numpy": np.random.get_state(),
         "python": random.getstate(),
     }
+    if torch.cuda.is_available():
+        try:
+            state["cuda"] = torch.cuda.get_rng_state_all()
+        except Exception:
+            pass
+    return state
 
 
 def _sha256_file(path):
@@ -41,6 +47,15 @@ def restore_rng_state(state):
         return
     if "torch" in state and state["torch"] is not None:
         torch.set_rng_state(state["torch"])
+    if "cuda" in state and state["cuda"] is not None and torch.cuda.is_available():
+        try:
+            torch.cuda.set_rng_state_all(state["cuda"])
+        except Exception:
+            # 设备数/顺序变化时 set_rng_state_all 可能失败, 退化为恢复当前设备
+            try:
+                torch.cuda.set_rng_state(state["cuda"][0])
+            except Exception:
+                pass
     if "numpy" in state and state["numpy"] is not None:
         np.random.set_state(state["numpy"])
     if "python" in state and state["python"] is not None:
@@ -87,6 +102,18 @@ class CheckpointManager:
         except Exception:
             pass
 
+    def _verify_sha256(self, path):
+        """校验 .sha256 sidecar (若存在)。无 sidecar 视为通过, 兼容旧 checkpoint。"""
+        sidecar = path + ".sha256"
+        if not os.path.exists(sidecar):
+            return True
+        try:
+            with open(sidecar) as f:
+                expected = f.read().strip()
+            return bool(expected) and _sha256_file(path) == expected
+        except Exception:
+            return False
+
     def _available_checkpoints(self):
         try:
             files = [f for f in os.listdir(self.save_dir)
@@ -112,6 +139,9 @@ class CheckpointManager:
         if not candidates:
             return None
         for cand in candidates:
+            if not self._verify_sha256(cand):
+                print(f"⚠️ Checkpoint sha256 校验失败 ({cand}), 尝试下一个")
+                continue
             try:
                 ckpt = torch.load(cand, map_location="cpu", weights_only=False)
                 self.best_val_metric = ckpt.get("best_val_metric", self.best_val_metric)

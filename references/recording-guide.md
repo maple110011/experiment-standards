@@ -115,7 +115,8 @@ json.dump(report, open(os.path.join(run_dir, "evaluation_report.json"), "w"))
    link_approx/结构等 evaluation_config，指标口径不一致就没法跨方法/跨实验比较。
 7. **环境与硬件**：`make_run_dir` 会自动调用 `environment_capture`，并在结果里记录
    `gpu_memory`；模型结构用 `model_summary` 记录。
-8. **TensorBoard**：`log_epoch` 自动把标量写入 `run_dir/tb/`，无需额外代码。
+8. **TensorBoard**：`log_epoch` 自动把标量写入 `run_dir/tb/`，无需额外代码；
+   `val_` 前缀的指标（如 `val_acc`/`val_loss`）写入 `val/`，其余写入 `train/`。
 9. **异常留痕**：所有 `except` 块调用 `log_exception(run_dir)`，把完整堆栈写入
    `errors.log`，不要只 print。
 10. **模型权重**：默认用 `save_model_weights` 保存 best/final 权重到 `checkpoints/`；
