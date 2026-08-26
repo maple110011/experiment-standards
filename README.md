@@ -1,6 +1,27 @@
 # experiment-standards
 
-为机器学习训练脚本添加标准化实验基础设施的 Agent Skill。工程侧：checkpoint、日志、环境记录、早停、LR 调度、异常恢复、评估报告、标准输出目录，以及面向长实验的完整记录包（代码快照 / 数据哈希 / 训练曲线 / 预测样本 / TensorBoard / 增量结果）。
+一个给 AI 编程助手（Agent）用的 Skill 仓库，把普通 ML 训练脚本升级成「能断点续训、可复现、可跨设备比较、有标准化评估」的实验。里面有两个 Skill：
+
+| Skill | 位置 | 做什么 |
+|---|---|---|
+| **experiment-standards** | 根目录 | 实验工程基础设施：checkpoint、日志、环境记录、早停、LR 调度、异常恢复、评估报告、长实验记录包 |
+| **bayes-dl-dcu** | [`bayes-dl-dcu/`](./bayes-dl-dcu/) | 贝叶斯深度学习的方法公平对比协议、不确定度校准、分布偏移/OOD、海光 DCU 适配、大模型训练经验 |
+
+两者配合使用：BDL 实验脚本按根 Skill 规范产出标准记录，方法比较与校准按 `bayes-dl-dcu` 执行。
+
+## 何时用 / 不用
+
+**用（满足任一即可）**
+
+- 训练脚本需要 checkpoint/断点续训、日志、环境记录、早停、异常恢复、评估报告
+- 要跑长实验（几十分钟以上）或大模型，担心中途挂掉/超时，需要监控显存和算力
+- 要多方法对比或写论文，需要标准化记录包、预测分布落盘、校准曲线/TensorBoard
+- 要比较贝叶斯深度学习方法、做不确定度校准、在 DCU/HIP 上跑 PyTorch/Pyro（用 `bayes-dl-dcu`）
+
+**不用**
+
+- 纯一次性快速原型、不需要记录和复现的小实验
+- 纯模型架构设计 / 推理方法选择（不属于本仓库两个 Skill 的范围）
 
 ## 做什么
 
@@ -18,14 +39,13 @@
 
 ## 适用框架
 
-框架无关，内置 PyTorch 和 Pyro 示例。贝叶斯深度学习方法选择、校准指标、DCU 适配经验等**领域内容**在本仓库子目录
-[`bayes-dl-dcu/`](./bayes-dl-dcu/) 中。
+框架无关，内置 PyTorch 和 Pyro 示例。
 
 ## 文件结构
 
 ```
 experiment-standards/
-├── SKILL.md                          # Skill 主文件（工作流 + 触发说明）
+├── SKILL.md                          # Skill 1: 实验工程标准化（根目录）
 ├── README.md
 ├── assets/templates/                 # 可复用代码模板
 │   ├── checkpoint_manager.py         # Checkpoint + 完整 RNG 状态
@@ -35,7 +55,7 @@ experiment-standards/
 │   └── experiment_recorder.py        # 大型实验记录包（含 TensorBoard）
 ├── scripts/
 │   └── jupyter_exec.py               # 受限 shell 通过 Jupyter kernel 跑 GPU 的助手
-├── references/                       # 详细参考文档
+├── references/                       # Skill 1 参考文档
 │   ├── checkpoint-guide.md
 │   ├── training-control.md
 │   ├── logging-guide.md
@@ -43,9 +63,19 @@ experiment-standards/
 │   ├── resilience-guide.md
 │   ├── recording-guide.md            # 大型实验记录标准
 │   └── long-running-guide.md         # 长任务/大模型训练工程
-└── evals/
-    ├── evals.json                    # 测试 prompt（8 条）
-    └── run_evals.py                  # 自动单元测试 / 输出校验 / DCU 环境校验
+├── evals/
+│   ├── evals.json                    # 测试 prompt（8 条）
+│   └── run_evals.py                  # 自动单元测试 / 输出校验 / DCU 环境校验
+└── bayes-dl-dcu/                     # Skill 2: 贝叶斯深度学习 / DCU 领域经验
+    ├── SKILL.md
+    ├── references/
+    │   ├── methods-and-results.md    # 方法公平对比协议
+    │   ├── dcu-adaptation.md
+    │   ├── batch-size-guidance.md
+    │   ├── large-model-experience.md
+    │   └── research-topics.md
+    └── evals/
+        └── evals.json
 ```
 
 ## 快速使用
@@ -85,29 +115,3 @@ save_model_weights(run_dir, "MAP", model, is_best=True)
 
 每个 run 目录包含：`run_manifest.json`、`code/`、`training/*.csv`、`predictions/`、
 `results_partial.json`、`evaluation_report.json`、`tb/`（TensorBoard）、`figures/`。
-
-## 仓库结构：两个 skill
-
-```
-experiment-standards/
-├── SKILL.md                        # skill 1: 实验工程标准化（本根目录）
-├── README.md
-├── assets/templates/...
-├── references/...
-├── evals/...
-└── bayes-dl-dcu/                   # skill 2: 贝叶斯深度学习 / DCU 领域经验
-    ├── SKILL.md
-    ├── references/
-    │   ├── methods-and-results.md
-    │   ├── dcu-adaptation.md
-    │   ├── batch-size-guidance.md
-    │   ├── large-model-experience.md
-    │   └── research-topics.md
-    └── evals/evals.json
-```
-
-- `experiment-standards`：实验工程基础设施（checkpoint/日志/环境/评估/记录包）。
-- `bayes-dl-dcu`：贝叶斯深度学习方法比较、不确定性校准、分布偏移/OOD、DCU 适配、大模型经验。
-
-两者配合使用：BDL 实验脚本按根 skill 规范产出记录，方法选择与校准指标按
-`bayes-dl-dcu` 执行。

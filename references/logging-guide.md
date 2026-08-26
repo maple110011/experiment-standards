@@ -29,7 +29,7 @@ CUDA / ROCm(HIP, 含海光 DCU) / MPS / CPU-only 四种后端。依赖 `psutil`
 > ⚠️ **受限 shell 会误报无 GPU**：如果本机是海光 DCU/ROCm 且 shell 对
 > `/dev/kfd`、`/dev/dri/renderD128` 只读，`torch.cuda.is_available()` 会返回
 > `False`（假象）。不要在 bash 里据此判断没卡；要用
-> `python3 gpu-runner/jupyter_exec.py --file script.py` 通过 Jupyter kernel
+> `python3 scripts/jupyter_exec.py --file script.py` 通过 Jupyter kernel
 > 执行 GPU 代码，并在 kernel 里采集环境。
 
 > ⚠️ **环境卫生**：在 HIP/ROCm 环境的虚拟环境里装包时，凡依赖 torch 的 PyPI 包

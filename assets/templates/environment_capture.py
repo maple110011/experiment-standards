@@ -97,7 +97,7 @@ def capture_environment():
         env["gpu"]["note"] = ("torch.cuda.is_available()=False in this shell. "
                               "If /dev/kfd or /dev/dri is read-only (restricted shell), "
                               "this is a false negative: run the actual GPU code via "
-                              "Jupyter kernel (gpu-runner/jupyter_exec.py) and capture "
+                              "Jupyter kernel (scripts/jupyter_exec.py) and capture "
                               "environment there.")
 
     if torch.cuda.is_available():

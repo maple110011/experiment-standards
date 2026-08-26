@@ -54,7 +54,7 @@
     {
       "id": 8,
       "prompt": "在受限 shell 里 torch.cuda.is_available() 返回 False，但机器上明明有海光 DCU，怎么才能跑 GPU 实验并记录真实环境？",
-      "expected_output": "不要相信 bash 里的 torch.cuda.is_available()；受限 shell 对 /dev/kfd、/dev/dri 只读会误报 False。用 gpu-runner/jupyter_exec.py 通过 Jupyter kernel 执行 GPU 代码，并在 kernel 里调用 capture_environment；长任务用 setsid 包 jupyter_exec 并轮询 results_partial.json",
+      "expected_output": "不要相信 bash 里的 torch.cuda.is_available()；受限 shell 对 /dev/kfd、/dev/dri 只读会误报 False。用 scripts/jupyter_exec.py 通过 Jupyter kernel 执行 GPU 代码，并在 kernel 里调用 capture_environment；长任务用 setsid 包 jupyter_exec 并轮询 results_partial.json",
       "files": ["references/logging-guide.md", "references/long-running-guide.md", "bayes-dl-dcu/references/dcu-adaptation.md"],
       "auto_check": "grep -q 'jupyter_exec.py' references/long-running-guide.md && grep -q 'Jupyter kernel' references/logging-guide.md"
     }

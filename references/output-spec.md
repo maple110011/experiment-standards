@@ -45,7 +45,11 @@ generate_experiment_metadata(CONFIG, env, dataset_info, "outputs/experiment_meta
 | 训练 | `total_epochs`, `final_loss`, `early_stopped`, `training_time_seconds`, `best_epoch` |
 
 贝叶斯深度学习实验强烈建议额外报告不确定性校准指标: ECE (expected
-calibration error)、sharpness (后验预测区间平均宽度)、coverage。
+calibration error)、sharpness (后验预测区间平均宽度)、coverage、NLL。
+这些指标可用模板 `assets/templates/metrics.py` 直接计算
+（`ece_classification` / `ece_regression` / `nll_classification` /
+`nll_regression` / `brier_score` / `sharpness_classification` /
+`sharpness_regression` / `coverage`）。
 
 ## 3. 模型导出
 
