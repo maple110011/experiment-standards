@@ -82,7 +82,7 @@ experiment-standards/
 │   ├── cannlab-guide.md              # 本地 DSH 遥控昇腾 NPU（CANNLab CLI）
 │   └── scnet-guide.md                # 把 dsh 装进 SCNet 计算卡容器
 ├── evals/
-│   ├── evals.json                    # 测试 prompt（8 条）
+│   ├── evals.json                    # 测试 prompt（含远程接入场景）
 │   └── run_evals.py                  # 自动单元测试 / 输出校验 / DCU 环境校验
 ├── bayes-dl-dcu/                     # Skill 2: 贝叶斯深度学习 / DCU 领域经验
 │   ├── SKILL.md
