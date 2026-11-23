@@ -17,11 +17,16 @@
 | 一台 Linux 容器，出网受限，但能装 Node | 能 | **B：dsh 装在远端，本地只留浏览器** | SCNet 计算卡容器 |
 | 普通 SSH 云主机 / 跳板机 | 可选 | **C：本地 DSH + OpenSSH** | 学校/实验室服务器 |
 
-按顺序问三条：
+按顺序问三条（**先问能不能最省事，再问好不好用**）：
 
-1. **远端出网通不通？** 不通、或代理会漂移 → 拓扑 B（dsh 在远端，模型调用走远端代理，本地只开浏览器）。
-2. **远端能不能装 Node、能不能长驻进程？** 不能 → 拓扑 A（CLI 当命令通道，一次一条命令）。
-3. **你要的是"一条条命令"还是"一个持续会话"？** 交互式改代码、长会话 → B；批量命令、作业提交 → A/C。
+1. **有没有可用的 SSH？** 有 → 直接走拓扑 C：本机 DSH + `ssh` + `scripts/remote_job.sh`。
+   这是最直白的一条：不装 Node、不搞转发器、不碰 Host 栅栏，本机就是"发命令的那一侧"。
+2. **没有 SSH、但远端能装 Node 并长驻进程？** → 拓扑 B：把 dsh 装进远端，本地只留浏览器。
+   代价是代理、`DSH_HOME`、转发端口、`--trusted-host` 四件事都得自己维护。
+3. **远端既没有 SSH、也装不了 Node？** → 拓扑 A：平台 CLI（如 CANNLab）当一次一条命令的通道。
+
+**别把有 SSH 的情况做成 B。** 装 dsh 进容器只在"根本发不出命令"时才划算；一旦有命令通道，
+多出来的每一层（转发器、信任白名单、出网代理）都是故障点，而不是能力。
 
 选错的代价：在只允许跑作业的平台上硬装 dsh，会被空闲回收；在容器里做 A，会为本机与容器的双层代理反复买单。
 
@@ -73,6 +78,34 @@
 1. **Host 栅栏只放行请求，不做认证**：`--trusted-host` 是"承认这个 authority"，真正的认证靠启动 token 和签名 cookie。不带端口的条目匹配任意端口，正好适合每次换端口的隧道。
 2. **监听器绑定的那个地址自动被信任**；代理 / DNS 的 authority 必须显式加。
 3. **设置页只对 loopback 浏览器开放**（本仓库实测）；远程浏览器显示 `settings are unavailable in this browser` 是设计，改配置走文件。
+
+## 3b. 有 SSH 就够：一条命令跑完整个作业生命周期
+
+本仓库带一个不依赖任何服务端的作业协议 [`scripts/remote_job.sh`](../scripts/remote_job.sh)：
+远端只需要 `bash` + `setsid` + 一个可写目录，装上什么。它把 CANNLab `job` 那套语义搬到裸 SSH：
+
+```bash
+bash scripts/remote_job.sh doctor --host me@host        # 体检：bash/setsid/盘/卡/网络
+bash scripts/remote_job.sh submit --host me@host --name exp1 --file run.sh --workdir '~/proj'
+bash scripts/remote_job.sh status --host me@host --name exp1
+bash scripts/remote_job.sh logs   --host me@host --name exp1 --tail 120 [--stream stderr]
+bash scripts/remote_job.sh list   --host me@host
+bash scripts/remote_job.sh stop   --host me@host --name exp1
+bash scripts/remote_job.sh ship   --host me@host ./code '~/proj/code'
+bash scripts/remote_job.sh fetch  --host me@host '~/proj/runs' ./runs
+bash scripts/remote_job.sh submit --host me --ssh-opts '-p 11042 -i ~/.ssh/id_x' ...
+```
+
+设计上守着四条，和 CANNLab 的判据一致：
+
+| 事实 | 做法 |
+|:--|:--|
+| 本机 job 会随会话清理 | `setsid`/`nohup` 起在远端，SSH 断开照跑 |
+| 状态必须原子 | 每个作业一个目录，`status/pid/exit_code` 一律 `.tmp` + `mv` |
+| 成功只有一种 | `state=finished` 且 `exit_code=0`；pid 用 `kill -0` 判活 |
+| 失败要吵 | 同名作业在跑就拒（`92`）；进程没起来就报 `94`，不留"running 但没进程" |
+
+所以"像 CANNLab 那样直接"其实不需要 CANNLab：**一个 bash 脚本 + 平台给的 SSH 就是同一套语义**。
 
 ## 4. ③ 传输：单向，且每次记 HEAD
 

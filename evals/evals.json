@@ -76,8 +76,8 @@
       "id": 11,
       "prompt": "换到一个新的云平台（只给 SSH 和 sbatch），怎么把 DSH 接上去、怎么验证接好了？",
       "expected_output": "按五段链路（凭据→建连→传输→存活→回收）逐段确认；dsh web 只监听 loopback 且拒绝通配地址，跨机访问用 SSH 隧道（首选）或端口转发并配 --trusted-host（不带端口匹配任意端口，栅栏只放行不认证）；长命令交给远端 sbatch/setsid，不能用本机 DSH job 当载体；代码单向推上去、记 git rev-parse HEAD；按十分钟验证清单 8 条逐条过（凭据/建连/设备/持久盘/长命令载体/传输/回收）；最后填接入记录表（平台、认证、拓扑、建连命令、信任配置、持久盘、载体、回收、已知坑）",
-      "files": ["references/remote-access.md"],
-      "auto_check": "grep -q 'trusted-host' references/remote-access.md && grep -q 'sbatch' references/remote-access.md && grep -q '十分钟验证清单' references/remote-access.md"
+      "files": ["references/remote-access.md", "scripts/remote_job.sh"],
+      "auto_check": "grep -q 'trusted-host' references/remote-access.md && grep -q 'sbatch' references/remote-access.md && grep -q '十分钟验证清单' references/remote-access.md && grep -q 'remote_job.sh' references/remote-access.md"
     }
   ]
 }

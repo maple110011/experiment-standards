@@ -49,7 +49,7 @@ collab-lab  ← 人在回路：预注册 / 摘要 / 决策 / 台账
 - **标准化输出目录** — 统一文件结构
 - **大型实验记录包** — `experiment_recorder.py`：run manifest、代码快照、数据哈希、事件时间线、逐 epoch 指标、预测概率/均值方差/样本、切分索引、增量结果、分布偏移与温度缩放记录、TensorBoard、模型权重
 - **长任务 / 大模型训练** — 1-epoch 基准先行、后台启动与超时余量、受限 shell 通过 Jupyter kernel 跑 GPU、显存/算力分开监控、数据缓存、batch 缩放、卡型选型
-- **远程接入** — 三条拓扑（本地 DSH 命令通道 / 远端 dsh 常驻 / 本地 DSH + OpenSSH）、五段链路（凭据→建连→传输→存活→回收）、`dsh web` 的 loopback 与 Host 栅栏、SSH 隧道与平台自定义服务端口暴露、出网代理探测、DSH_HOME 文件化配置、`start.sh` 参数化 + `run.sh` 参数持久化、CANNLab CLI 的隧道与 job 协议、海光 DCU 容器里的 torch/依赖纪律、10 分钟验证清单、接新平台的 6 步复用表
+- **远程接入** — 有 SSH 就一条命令（`scripts/remote_job.sh`：doctor/submit/status/logs/stop/ship/fetch，远端只需 bash+setsid）；无 SSH 才把 dsh 装进容器；三条拓扑（本地 DSH 命令通道 / 远端 dsh 常驻 / 本地 DSH + OpenSSH）、五段链路（凭据→建连→传输→存活→回收）、`dsh web` 的 loopback 与 Host 栅栏、SSH 隧道与平台自定义服务端口暴露、出网代理探测、DSH_HOME 文件化配置、`start.sh` 参数化 + `run.sh` 参数持久化、CANNLab CLI 的隧道与 job 协议、海光 DCU 容器里的 torch/依赖纪律、10 分钟验证清单、接新平台的 6 步复用表
 - **人机协作回路**（`collab-lab`）— 三层回路（L1 执行记录 / L2 预注册协议块 / L3 摘要与决策）、严格闸门（一个闸门=一个协议块，跑完必须等回答）、摘要卡字段与字符预算、机制三分类（实现问题/调参问题/方法本身的性质）、**三级台账**（问题/方法/理论）与证据等级（稳定/薄/不稳/?）、**理论梯子**（把"实践需要而方法给不了、现有框架解释不了"的落差提炼成可研究的理论问题）、**探究地图**（按信息增量分五节：已确认/有冲突/单来源/已证伪/未探究——治"不知道走过了什么"）、**多 agent 汇总**（fan-out 五条纪律与冲突台账）、评测噪声下界与最小可检测效应、五分钟验收测试
 
 ## 适用框架
@@ -69,7 +69,8 @@ experiment-standards/
 │   ├── evaluation_report.py          # 评估报告 / 实验元数据
 │   └── experiment_recorder.py        # 大型实验记录包（含 TensorBoard）
 ├── scripts/
-│   └── jupyter_exec.py               # 受限 shell 通过 Jupyter kernel 跑 GPU 的助手
+│   ├── jupyter_exec.py               # 受限 shell 通过 Jupyter kernel 跑 GPU 的助手
+│   └── remote_job.sh                 # SSH 远端作业协议：提交/状态/日志/终止/取回
 ├── references/                       # Skill 1 参考文档
 │   ├── checkpoint-guide.md
 │   ├── training-control.md

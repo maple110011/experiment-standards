@@ -185,7 +185,9 @@ Agent 生成的代码必须在训练结束后产生以下文件：
 接法只有三种拓扑，选错会白折腾半天；五段链路（凭据 → 建连 → 传输 → 存活 → 回收）在哪个平台都一样。
 动手前先读 [remote-access.md](./references/remote-access.md)，核心:
 
-- **先选拓扑**：平台只给 WebIDE/SSH、连接要自己建 → 本地 DSH + 命令通道
+- **先问有没有 SSH**：有就直接本地 DSH + `ssh` + [scripts/remote_job.sh](./scripts/remote_job.sh)
+  （提交/状态/日志/终止/取回一条命令，远端只需 bash+setsid），别急着把 dsh 装进远端
+- **再选拓扑**：平台只给 WebIDE/SSH、连接要自己建 → 本地 DSH + 命令通道
   （[cannlab-guide.md](./references/cannlab-guide.md) 昇腾 NPU）；容器能装 Node、出网受限 →
   dsh 装进远端、本地只留浏览器（[scnet-guide.md](./references/scnet-guide.md) SCNet 海光 DCU）；
   普通云主机 → 本地 DSH + OpenSSH
@@ -207,7 +209,8 @@ Agent 生成的代码必须在训练结束后产生以下文件：
 | 加 checkpoint 保存/恢复 | [checkpoint-guide.md](./references/checkpoint-guide.md) | §1-2; Pyro 用户加读 §3 |
 | 加早停 / 调学习率 / batch 缩放 | [training-control.md](./references/training-control.md) | §1 (早停), §2 (LR调度), §2 末 (batch↔lr缩放) |
 | 长任务 / 大模型 / 1-epoch 基准 / 后台运行 | [long-running-guide.md](./references/long-running-guide.md) | 全部 |
-| 建立远程接入 / 选拓扑 / 通道与信任 / 验证清单 / 换平台复用 | [remote-access.md](./references/remote-access.md) | §0 拓扑, §1 五段链路, §3 通道, §7 验证, §9 复用表 |
+| 建立远程接入 / 选拓扑 / 通道与信任 / 验证清单 / 换平台复用 | [remote-access.md](./references/remote-access.md) | §0 拓扑, §1 五段链路, §3 通道, §3b SSH 作业协议, §7 验证, §9 复用表 |
+| 用 SSH 在远端跑长作业（提交/状态/日志/终止/取回） | [scripts/remote_job.sh](./scripts/remote_job.sh) | 全部（`--help`） |
 | 本地 DSH 遥控昇腾 NPU / CANNLab CLI / 隧道 / job / 卡时 | [cannlab-guide.md](./references/cannlab-guide.md) | §1 协议链, §2 SOP, §4 隧道, §7 job, §8 回收 |
 | 把 dsh 装进 SCNet 海光 DCU 容器 / 无 SSH 接入 / 代理漂移 / run.sh | [scnet-guide.md](./references/scnet-guide.md) | §1 通道, §4 代理探测, §5 start.sh, §7 run.sh, §9 DCU 实验 |
 | 记录环境信息 / 配日志 | [logging-guide.md](./references/logging-guide.md) | §1 (环境), §2 (日志), §3 (CSV), §4 (元数据) |
