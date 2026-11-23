@@ -1,7 +1,7 @@
 ---
 name: experiment-standards
 description: |-
-  Use this skill whenever the user is building, fixing, or running an ML experiment: checkpoint/resume after a crash, split training and error logs, cross-device environment capture, early stopping and LR scheduling, batch-size↔lr scaling, NaN/OOM recovery, evaluation reports, standard output directory, the experiment_recorder pack (manifest, code snapshot, per-epoch metrics, saved predictions, calibration curves, TensorBoard), long-running launch with 1-epoch benchmarking, cached datasets. Also when the compute is remote — 昇腾 NPU/CANNLab、超算互联网/SCNet 计算卡、SSH 云主机：先选拓扑（本地 DSH+命令通道 / 远端 dsh+浏览器）、凭据与隧道、代理与持久盘、长命令载体、验证与关机关时。 Trigger even if the user only says 跑一下、复现不了、结果对不上、换了机器结果不一样、实验挂了一半、显存不够、batch 该多大、受限 shell 里 GPU 不可用，或问 日志/早停/学习率/输出目录/超参搜索/远程跑实验 怎么弄. Do NOT use for architecture design or inference-method choice (use bayes-dl-dcu for BDL calibration). If the bottleneck is human comprehension rather than compute — 信息过载、跟不上 agent、看不懂结果、分不清噪声与改进、想积累方法洞见 — use collab-lab.
+  Use this skill whenever the user is building, fixing, or running an ML experiment: checkpoint/resume after a crash, split training and error logs, cross-device environment capture, early stopping and LR scheduling, batch-size↔lr scaling, NaN/OOM recovery, evaluation reports, standard output directory, the experiment_recorder pack (manifest, code snapshot, per-epoch metrics, saved predictions, calibration curves, TensorBoard), long-running launch with 1-epoch benchmarking, cached datasets. Also when the compute is remote — 昇腾 NPU/CANNLab、超算互联网/SCNet 海光 DCU、SSH 云主机：先选拓扑（本地 DSH+命令通道 / 远端 dsh+浏览器）、凭据与隧道、代理与持久盘、长命令载体、验证与关机关时。 Trigger even if the user only says 跑一下、复现不了、结果对不上、换了机器结果不一样、实验挂了一半、显存不够、batch 该多大、受限 shell 里 GPU 不可用，或问 日志/早停/学习率/输出目录/超参搜索/远程跑实验 怎么弄. Do NOT use for architecture design or inference-method choice (use bayes-dl-dcu for BDL calibration). If the bottleneck is human comprehension rather than compute — 信息过载、跟不上 agent、看不懂结果、分不清噪声与改进、想积累方法洞见 — use collab-lab.
 argument-hint: '[任务: checkpoint管理 / 实验日志 / 环境记录 / 早停 / 评估报告 / 输出物规范 / 长任务·大模型训练 / 远程接入·CANNLab·SCNet]'
 ---
 
@@ -187,7 +187,7 @@ Agent 生成的代码必须在训练结束后产生以下文件：
 
 - **先选拓扑**：平台只给 WebIDE/SSH、连接要自己建 → 本地 DSH + 命令通道
   （[cannlab-guide.md](./references/cannlab-guide.md) 昇腾 NPU）；容器能装 Node、出网受限 →
-  dsh 装进远端、本地只留浏览器（[scnet-guide.md](./references/scnet-guide.md) SCNet）；
+  dsh 装进远端、本地只留浏览器（[scnet-guide.md](./references/scnet-guide.md) SCNet 海光 DCU）；
   普通云主机 → 本地 DSH + OpenSSH
 - **`dsh web` 只监听 loopback、拒绝通配地址**：跨机访问只能 SSH 隧道 / 平台转发 / CLI 一次性隧道；
   `--trusted-host` 只是承认 authority，不代替认证
@@ -209,7 +209,7 @@ Agent 生成的代码必须在训练结束后产生以下文件：
 | 长任务 / 大模型 / 1-epoch 基准 / 后台运行 | [long-running-guide.md](./references/long-running-guide.md) | 全部 |
 | 建立远程接入 / 选拓扑 / 通道与信任 / 验证清单 / 换平台复用 | [remote-access.md](./references/remote-access.md) | §0 拓扑, §1 五段链路, §3 通道, §7 验证, §9 复用表 |
 | 本地 DSH 遥控昇腾 NPU / CANNLab CLI / 隧道 / job / 卡时 | [cannlab-guide.md](./references/cannlab-guide.md) | §1 协议链, §2 SOP, §4 隧道, §7 job, §8 回收 |
-| 把 dsh 装进 SCNet 容器 / 代理 / DSH_HOME / start.sh | [scnet-guide.md](./references/scnet-guide.md) | §3 通道, §4 代理, §5 配置, §6 start.sh |
+| 把 dsh 装进 SCNet 海光 DCU 容器 / 无 SSH 接入 / 代理漂移 / run.sh | [scnet-guide.md](./references/scnet-guide.md) | §1 通道, §4 代理探测, §5 start.sh, §7 run.sh, §9 DCU 实验 |
 | 记录环境信息 / 配日志 | [logging-guide.md](./references/logging-guide.md) | §1 (环境), §2 (日志), §3 (CSV), §4 (元数据) |
 | 规范输出目录 / 评估报告 / 模型导出 | [output-spec.md](./references/output-spec.md) | §1 (目录), §2 (报告), §3 (导出); Pyro/MCMC 用户加读 §3 后半 |
 | 训练崩溃恢复 / NaN处理 / 内存管理 | [resilience-guide.md](./references/resilience-guide.md) | §1 (NaN), §2 (梯度), §3 (回退), §4 (DataLoader), §5 (内存) |
@@ -294,6 +294,6 @@ events、预测分布），`collab-lab` 负责把它们变成**人能判断**的
 
 # 远程接入
 /experiment-standards 我想在 DSH 里直接驱动 CANNLab 的昇腾 NPU，从登录到能发一条远端命令，要配哪些东西？
-/experiment-standards SCNet 的计算卡容器里想常驻一个 dsh、本地浏览器遥控，容器重启后怎么一条命令恢复？
+/experiment-standards SCNet 的海光 DCU 容器里想常驻一个 dsh、本地浏览器遥控，容器重启后怎么一条命令恢复？
 /experiment-standards 换一个新的云平台（只有 SSH + sbatch），怎么把 DSH 接上去、怎么验证？
 ```

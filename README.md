@@ -24,7 +24,7 @@ collab-lab  ← 人在回路：预注册 / 摘要 / 决策 / 台账
 
 - 训练脚本需要 checkpoint/断点续训、日志、环境记录、早停、异常恢复、评估报告
 - 要跑长实验（几十分钟以上）或大模型，担心中途挂掉/超时，需要监控显存和算力
-- **要建立远程接入**（CANNLab 昇腾 NPU、超算互联网/SCNet 计算卡、SSH 云主机）——三种拓扑怎么选、凭据与隧道、`dsh web` 的 loopback/Host 栅栏、出网代理、持久盘、长命令载体、验证清单与回收
+- **要建立远程接入**（CANNLab 昇腾 NPU、超算互联网/SCNet 海光 DCU、SSH 云主机）——三种拓扑怎么选、凭据与隧道、`dsh web` 的 loopback/Host 栅栏、出网代理、持久盘、长命令载体、验证清单与回收
 - 要多方法对比或写论文，需要标准化记录包、预测分布落盘、校准曲线/TensorBoard
 - 要比较贝叶斯深度学习方法、做不确定度校准、在 DCU/HIP 上跑 PyTorch/Pyro（用 `bayes-dl-dcu`）
 - **Agent 跑得比你读得快，结果一多就失去方向，或分不清是噪声还是真改进（用 `collab-lab`）**
@@ -49,7 +49,7 @@ collab-lab  ← 人在回路：预注册 / 摘要 / 决策 / 台账
 - **标准化输出目录** — 统一文件结构
 - **大型实验记录包** — `experiment_recorder.py`：run manifest、代码快照、数据哈希、事件时间线、逐 epoch 指标、预测概率/均值方差/样本、切分索引、增量结果、分布偏移与温度缩放记录、TensorBoard、模型权重
 - **长任务 / 大模型训练** — 1-epoch 基准先行、后台启动与超时余量、受限 shell 通过 Jupyter kernel 跑 GPU、显存/算力分开监控、数据缓存、batch 缩放、卡型选型
-- **远程接入** — 三条拓扑（本地 DSH 命令通道 / 远端 dsh 常驻 / 本地 DSH + OpenSSH）、五段链路（凭据→建连→传输→存活→回收）、`dsh web` 的 loopback 与 Host 栅栏、SSH 隧道与端口转发、出网代理三坑、DSH_HOME 文件化配置、`start.sh` 一键恢复、CANNLab CLI 的隧道与 job 协议、10 分钟验证清单、接新平台的 6 步复用表
+- **远程接入** — 三条拓扑（本地 DSH 命令通道 / 远端 dsh 常驻 / 本地 DSH + OpenSSH）、五段链路（凭据→建连→传输→存活→回收）、`dsh web` 的 loopback 与 Host 栅栏、SSH 隧道与平台自定义服务端口暴露、出网代理探测、DSH_HOME 文件化配置、`start.sh` 参数化 + `run.sh` 参数持久化、CANNLab CLI 的隧道与 job 协议、海光 DCU 容器里的 torch/依赖纪律、10 分钟验证清单、接新平台的 6 步复用表
 - **人机协作回路**（`collab-lab`）— 三层回路（L1 执行记录 / L2 预注册协议块 / L3 摘要与决策）、严格闸门（一个闸门=一个协议块，跑完必须等回答）、摘要卡字段与字符预算、机制三分类（实现问题/调参问题/方法本身的性质）、**三级台账**（问题/方法/理论）与证据等级（稳定/薄/不稳/?）、**理论梯子**（把"实践需要而方法给不了、现有框架解释不了"的落差提炼成可研究的理论问题）、**探究地图**（按信息增量分五节：已确认/有冲突/单来源/已证伪/未探究——治"不知道走过了什么"）、**多 agent 汇总**（fan-out 五条纪律与冲突台账）、评测噪声下界与最小可检测效应、五分钟验收测试
 
 ## 适用框架
@@ -80,7 +80,7 @@ experiment-standards/
 │   ├── long-running-guide.md         # 长任务/大模型训练工程
 │   ├── remote-access.md              # 远程接入：选拓扑 / 五段链路 / 通道与信任 / 验证 / 复用
 │   ├── cannlab-guide.md              # 本地 DSH 遥控昇腾 NPU（CANNLab CLI）
-│   └── scnet-guide.md                # 把 dsh 装进 SCNet 计算卡容器
+│   └── scnet-guide.md                # 把 dsh 装进 SCNet 海光 DCU 容器（无 SSH 优先）
 ├── evals/
 │   ├── evals.json                    # 测试 prompt（含远程接入场景）
 │   └── run_evals.py                  # 自动单元测试 / 输出校验 / DCU 环境校验
