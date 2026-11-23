@@ -186,7 +186,9 @@ Agent 生成的代码必须在训练结束后产生以下文件：
 动手前先读 [remote-access.md](./references/remote-access.md)，核心:
 
 - **先问有没有 SSH**：有就直接本地 DSH + `ssh` + [scripts/remote_job.sh](./scripts/remote_job.sh)
-  （提交/状态/日志/终止/取回一条命令，远端只需 bash+setsid），别急着把 dsh 装进远端
+  （提交/状态/日志/终止/取回一条命令，远端只需 bash+setsid），别急着把 dsh 装进远端。
+  注意平台 SSH 常见是**每实例一个专属端口、只在开机期间监听**，登录命令去实例页面复制，
+  不要用"我测了 22 端口不通"下结论
 - **再选拓扑**：平台只给 WebIDE/SSH、连接要自己建 → 本地 DSH + 命令通道
   （[cannlab-guide.md](./references/cannlab-guide.md) 昇腾 NPU）；容器能装 Node、出网受限 →
   dsh 装进远端、本地只留浏览器（[scnet-guide.md](./references/scnet-guide.md) SCNet 海光 DCU）；
@@ -212,7 +214,7 @@ Agent 生成的代码必须在训练结束后产生以下文件：
 | 建立远程接入 / 选拓扑 / 通道与信任 / 验证清单 / 换平台复用 | [remote-access.md](./references/remote-access.md) | §0 拓扑, §1 五段链路, §3 通道, §3b SSH 作业协议, §7 验证, §9 复用表 |
 | 用 SSH 在远端跑长作业（提交/状态/日志/终止/取回） | [scripts/remote_job.sh](./scripts/remote_job.sh) | 全部（`--help`） |
 | 本地 DSH 遥控昇腾 NPU / CANNLab CLI / 隧道 / job / 卡时 | [cannlab-guide.md](./references/cannlab-guide.md) | §1 协议链, §2 SOP, §4 隧道, §7 job, §8 回收 |
-| 把 dsh 装进 SCNet 海光 DCU 容器 / 无 SSH 接入 / 代理漂移 / run.sh | [scnet-guide.md](./references/scnet-guide.md) | §1 通道, §4 代理探测, §5 start.sh, §7 run.sh, §9 DCU 实验 |
+| SCNet 海光 DCU 接入 / SSH 直连 / 无 SSH 兜底 / DCU 实验纪律 | [scnet-guide.md](./references/scnet-guide.md) | §0 三种形态, §0.6 SSH 事实, §1 通道, §9 DCU 实验 |
 | 记录环境信息 / 配日志 | [logging-guide.md](./references/logging-guide.md) | §1 (环境), §2 (日志), §3 (CSV), §4 (元数据) |
 | 规范输出目录 / 评估报告 / 模型导出 | [output-spec.md](./references/output-spec.md) | §1 (目录), §2 (报告), §3 (导出); Pyro/MCMC 用户加读 §3 后半 |
 | 训练崩溃恢复 / NaN处理 / 内存管理 | [resilience-guide.md](./references/resilience-guide.md) | §1 (NaN), §2 (梯度), §3 (回退), §4 (DataLoader), §5 (内存) |

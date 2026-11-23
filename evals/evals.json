@@ -67,10 +67,10 @@
     },
     {
       "id": 10,
-      "prompt": "SCNet 的海光 DCU 容器里 dsh 重启后连不上外网、对话报 Connection error，怎么排查？",
-      "expected_output": "按五段链路定位到网络层：先跑 start.sh --diagnose（打印环境代理、历史代理可达性、直连可达性、node/dsh/凭据/端口），能直接区分代理漂移和脚本问题；代理漂移时用 --proxy <新地址> 重跑或等探测回落到直连，拿到新地址就改进脚本而不是只 export 一次；确认 NODE_USE_ENV_PROXY=1（Node 不读 https_proxy）与 no_proxy 含平台域名；然后 bash run.sh 重启（参数已保存）并 curl --noproxy '*' 自检 3080/8082 是否 200",
-      "files": ["references/scnet-guide.md"],
-      "auto_check": "grep -q 'NODE_USE_ENV_PROXY' references/scnet-guide.md && grep -q -- '--diagnose' references/scnet-guide.md && grep -q 'run.sh' references/scnet-guide.md"
+      "prompt": "我要在 SCNet 的海光 DCU 实例上跑训练，并在本机 DSH 里驱动它，最省事的接法是什么？",
+      "expected_output": "先查平台有没有 SSH：SCNet 官方支持，登录命令在实例页面复制（root@<网关> -p <实例专属端口>），端口重启不变、只在开机期间监听——不要用 22 端口不通就断定没有 SSH；有 SSH 就走拓扑 C：~/.ssh/config 写别名，用 scripts/remote_job.sh 的 doctor/submit/status/logs/stop/ship/fetch 管理作业，远端只需 bash+setsid，容器里不装 dsh；只有拿不到 SSH 才退回容器内 dsh + 自定义服务端口（转发器 + --trusted-host + 代理探测 + run.sh）；作业成功判据 state=finished 且 exit_code=0，长命令必须 setsid 托管",
+      "files": ["references/scnet-guide.md", "scripts/remote_job.sh"],
+      "auto_check": "grep -q 'ssh-keygen -R' references/scnet-guide.md && grep -q 'remote_job.sh' references/scnet-guide.md && grep -q '实例页面' references/scnet-guide.md"
     },
     {
       "id": 11,

@@ -1,59 +1,93 @@
-# SCNet 接入指南：把 dsh 装进海光 DCU 容器
+# SCNet 接入指南：SSH 直连优先，dsh 进容器兜底
 
-> 平台：国家超算互联网（SCNet）的计算卡容器（海光 DCU / DTK 镜像）。拓扑 **B**：dsh 在容器内常驻，
-> 本地只留一个浏览器。本文讲**怎么装、怎么连、重启后怎么一条命令恢复**；通用骨架见
-> [remote-access.md](./remote-access.md)，另一条拓扑见 [cannlab-guide.md](./cannlab-guide.md)。
+> 平台：国家超算互联网（SCNet）的算力容器（海光 DCU，另有裸金属/超算资源）。
+> **官方支持 SSH 登录**（[官方文档](https://www.scnet.cn/help/docs/mainsite/ai/notebook/function-introduction/SSH/)，2026-03 更新），
+> 所以首选是拓扑 **C**：本机 DSH + `ssh` + [../scripts/remote_job.sh](../scripts/remote_job.sh)，
+> 容器里什么都不用装。只有确实拿不到 SSH 时，才退回"把 dsh 装进容器"（本文 §3 起）。
 >
-> 版本演进（三份材料，别用错）：
+> 通用骨架见 [remote-access.md](./remote-access.md)，另一条拓扑见 [cannlab-guide.md](./cannlab-guide.md)。
+>
+> 历史材料（别用错）：
 >
 > | 版本 | 材料 | 形态 |
 > |:--|:--|:--|
-> | 2026-08 初版 | 本机 `远程部署dsh说明.md` | **以 SSH 隧道为主**，域名/端口/代理全写死在脚本里 |
-> | **2026-10-20 r2（现行）** | `D:\临时\SCNet部署dsh\deploy-r2\`（`README.md` + `start.sh` + `deploy-dsh.ps1`） | **无 SSH 为主**：上传脚本 → JupyterLab 跑一行 → 平台"访问自定义服务"暴露 8082；参数化、代理自动探测、`run.sh` 持久化参数、`--diagnose` |
-> | 2026-10-20 DCU 训练包 | `gsv_dcu_bundle.tar.gz`（`RUNBOOK.md`） | 在容器里跑真实训练时的 DCU 适配与禁令，见 §9 |
+> | 2026-08 初版 | 本机 `远程部署dsh说明.md` | SSH 隧道为主，域名/端口/代理写死 |
+> | **2026-10-20 r2** | `D:\临时\SCNet部署dsh\deploy-r2\` | 无 SSH 为主：上传脚本 → JupyterLab 跑一行 → 平台"访问自定义服务"暴露 8082；参数化、代理自动探测、`run.sh` |
+> | 2026-10-20 DCU 训练包 | `gsv_dcu_bundle.tar.gz`（`RUNBOOK.md`） | 容器里跑真训练时的 DCU 纪律，见 §9 |
 >
-> 本文按 **r2** 写。
+> r2 那套"绕过 SSH"是为**当时以为没有 SSH** 设计的；现在按 §1 的先 SSH 后容器来。
 
-## 0. 为什么反过来把 dsh 放进容器
+## 0. 先分清三种访问形态
 
-SCNet 给的是"一台带卡的 Linux 容器 + 平台端口转发 + 一个会漂移的出网代理"。
-本地的 dsh 远程操作它，每一步都要和维护权打架：装包、改端口、看进程状态、代理失效。
-把 dsh 装进容器，本地只留浏览器：代码、checkpoint、日志就地读写；容器重启后本机**不需要**重装任何东西；
-代价是 dsh 自己的模型调用也要走容器的出网代理——这是 §4 最大的坑。
+SCNet 一台算力实例同时具备三种对外能力，代价差得很远，**按这个顺序用**：
 
-## 0.5 先问一句：这台机器真的需要装 dsh 吗
-
-装 dsh 进容器是**有代价**的：代理要探测、`DSH_HOME` 要落在持久卷、转发器要起、平台域名要加进
-`--trusted-host`、平台只能暴露一个端口。这五件事每一项都能单独把链路搞挂。
-
-所以先按代价从低到高试：
-
-| 顺序 | 做法 | 前提 | 代价 |
+| 顺序 | 形态 | 前提 | 代价 |
 |:--|:--|:--|:--|
-| 1 | **本机 DSH + SSH + [remote_job.sh](../scripts/remote_job.sh)** | 平台给 SSH（`ssh.zzai.scnet.cn:<端口>`，账号密码） | 最低：不装任何东西，一条命令提交/查状态/取回 |
-| 2 | 本机 DSH + SSH 隧道 + 远端只跑 `dsh web` | 同上，且想用**图形界面** | 中：容器里仍要 Node + dsh，但不需要转发器与 `--trusted-host` |
-| 3 | **本文的方式 A（无 SSH，装 dsh + 转发器）** | **没有可用 SSH** | 最高：Agent 在容器里，本机只留浏览器 |
+| 1 | **SSH 直连**：本机 DSH + `ssh` + [remote_job.sh](../scripts/remote_job.sh) | 官方 SSH 登录（`root@<网关> -p <实例端口>`） | **最低**：容器里不装任何东西 |
+| 2 | SSH 隧道 + 容器内只跑 `dsh web` | 同上，且想要**图形界面** | 中：容器里装 Node + dsh，但不需转发器与 `--trusted-host` |
+| 3 | 容器内 dsh + 平台自定义服务端口 | **拿不到 SSH 时** | 最高：代理探测、`DSH_HOME`、转发器、信任白名单，各有各的坏法 |
 
-第 1 条就是"像 CANNLab 一样直接"的答案：**同一个 `remote_job.sh` 在 CANNLab 那种"CLI 给你命令通道"
-的场景同样能用**（把 `--ssh-opts` 换成 CLI 提供的隧道命令即可）。
+第 1 条就是"像 CANNLab 一样直接"的答案：一条 `ssh` + 一个脚本，提交/查状态/看日志/取回全齐。
 
-> 本机实测（2026-11-23）：`ssh.zzai.scnet.cn` 解析到 `42.228.13.144`，但 22 / 11042 / 443
-> **三个端口都连不通**。也就是说在这台机器、这个网络下**第 1、2 条路走不通**，只能走第 3 条。
-> 这正是当初把脚本从"SSH 隧道版"改成"无 SSH 版"的原因——**不是绕，是被平台逼的**。
-> 换一台能连 SSH 的机器（或平台放开 SSH），就该退回第 1 条。
+## 0.5 纠正一个曾经的错判（别再踩）
 
-## 1. 两条通道：A 不用 SSH（本平台现状的主推），B SSH 隧道（能连 SSH 时优先）
+2026-11-23 我在本机探测 `ssh.zzai.scnet.cn` 的 22 / 11042 / 443，三个都不通，据此得出
+"SCNet 没有可用 SSH，只能把 dsh 装进容器"。**这个结论是错的**，错在两点：
 
-| | A：平台自定义服务 | B：SSH + 本机隧道 |
+1. **测的端口不对**：SCNet 的 SSH 不是 22，而是平台给每个实例分配的一个**专属端口**
+   （官方示例里是 `50009` / `50016` 这类），登录命令要在实例页面复制，抄不来也猜不到。
+2. **测的时机不对**：那个端口**只在实例开机期间监听**；实例关机时，同一个网关上其他实例的端口
+   自然也不通。我当时没有开机实例就下了结论。
+
+同一台网关（`42.228.13.144`）在 2026-11-23 19:4x 复测时 `58043` 端口是 **OPEN** 的
+（就是 10 月那个自定义服务映射），说明主机本身可达，之前测不到的只是**未开机实例的端口**。
+
+**教训写进流程**：判断"平台有没有某个能力"，去看官方文档和实例页面，不要用"我 ping 了几个端口不通"
+去否定它——端口是实例级的，实例不开就是黑的。
+
+## 0.6 SSH 的事实（官方文档）
+
+| 项 | 事实 |
+|:--|:--|
+| 登录用户 | **`root`**（不是普通用户） |
+| 登录命令 | 实例开机后，在实例页面**复制官方给的那条**：`ssh -p <端口> root@<网关>` |
+| 端口 | 每实例一个，**重启后保持不变**（所以 SSH config 别名一次写对，长期可用） |
+| 首次连接 | 用 IDE（VSCode/PyCharm Remote-SSH）连时会在容器里装 IDE 组件；纯命令行不需要 |
+| 主机密钥变了 | 平台轮换了 RSA 密钥：`ssh-keygen -R [<网关>]:<端口>` 后重连 |
+| 认证 | 密码（平台提供的实例密码）；是否支持公钥以平台为准，先按密码 |
+
+本机把它写进 `~/.ssh/config`，之后只记一个别名：
+
+```
+Host scnet-dcu
+    HostName <实例页面给的网关>
+    Port <实例页面给的端口>
+    User root
+    ServerAliveInterval 30
+```
+
+```bash
+ssh scnet-dcu 'hy-smi -L'                       # 冒烟：卡在不在
+bash scripts/remote_job.sh doctor --host scnet-dcu
+bash scripts/remote_job.sh submit --host scnet-dcu --name exp1 --file run.sh --workdir /root/private_data/proj
+```
+
+> 只做实验（不聊天）：到这里就结束了。后面 §1 起是"还想要图形界面/Agent 在容器里"才需要的。
+
+## 1. 想要图形界面时的两条通道
+
+只有"要在浏览器里和 dsh 对话"才需要往下走。两条通道都以"能有 SSH"为前提（§0.6）：
+
+| | A：SSH 隧道（首选） | B：平台自定义服务（无 SSH 时才用） |
 |:--|:--|:--|
-| 需要什么 | JupyterLab 终端（或 notebook cell）+ 平台 UI | SSH 账号密码 + 本机 `ssh` |
-| 端口 | 平台暴露 **8082**（容器内转发器） | 本地 `8081 → 127.0.0.1:3080` |
-| 设置页 | 不可用（远程浏览器，loopback-only） | 可用 |
-| 重启后 | 重跑 `bash ~/private_data/dsh/run.sh`，再点一次"启动任务" | 重跑 `run.sh`，`ssh -N scnet` |
-| 平台限制 | **只支持暴露一个端口** | — |
+| 需要什么 | 本机 `ssh` | JupyterLab 终端（或 notebook cell）+ 平台 UI |
+| 端口 | 本地 `8081 → 127.0.0.1:3080` | 平台暴露 **8082**（容器内转发器） |
+| 设置页 | **可用** | 不可用（远程浏览器，loopback-only） |
+| 重启后 | 重跑 `run.sh`，`ssh -N scnet-dcu` | 重跑 `run.sh`，再点一次"启动任务" |
+| 平台限制 | — | **只支持暴露一个端口** |
 
-选 A 的理由：SCNet 的 Notebook 实例经常根本没有可用的 SSH，A 不需要任何入站凭据。
-B 只是在"要改设置"或"平台代理不支持 WebSocket、页面一直转圈"时才用。
+**优先 A**：不用转发器、不用 `--trusted-host`、设置页还能用。
+**B 只在拿不到 SSH 时才用**——它是 r2 那套"无 SSH 版"的遗留路径，代价见 §3–§8。
 
 **信任模型（两条通道共同）**：`dsh web` 只监听 loopback 且拒绝通配地址；Host 栅栏接受 loopback、
 监听器自身地址，以及每个 `--trusted-host` 点名的 authority（不带端口 = 匹配任意端口）；
@@ -69,7 +103,9 @@ B 只是在"要改设置"或"平台代理不支持 WebSocket、页面一直转�
 | 卡 | 海光 DCU，DTK 镜像自带 torch | `hy-smi -L` / `rocm-smi` / `torch.cuda.is_available()` |
 | 出网代理 | 地址**会漂移** | 见 §4 |
 
-## 3. 方式 A：上传 → 跑一行 → 平台暴露端口
+## 3. 方式 B（无 SSH 兜底）：上传 → 跑一行 → 平台暴露端口
+
+> 只有当 `ssh` 确实连不上（端口拿不到、网络不允许）时才需要这一节。
 
 ```text
 A1 上传 start.sh          → /root/private_data/dsh/start.sh
@@ -243,16 +279,19 @@ DCU 环境事实（2026-10 实测一台 SCNet Pod，供参照）：
 | npm 装不动 | 网络 | `--proxy` 换代理；或改用 `--registry https://registry.npmmirror.com` |
 | 重启后全丢 | 持久化 | `DSH_HOME` 必须指到 `~/private_data/dsh/.dsh` |
 | `MISSING_CREDENTIAL` / `401` | 凭据 | `.credentials.yaml` 的 key/引用名 |
+| `ssh: connect to host ... port ...: Connection refused` | 网络 | **实例没开机**（SSH 端口只在运行期监听）；或端口/网关抄错 —— 回实例页面重新复制登录命令 |
+| `REMOTE HOST IDENTIFICATION HAS CHANGED` | 凭据 | 平台轮换了主机密钥：`ssh-keygen -R [<网关>]:<端口>` |
+| SSH 能连但卡不可见 | 远端环境 | 先 `hy-smi -L`；再查镜像/解释器（见 §9 第 6 条） |
 | `torch.cuda.is_available()=False` | 远端环境 | 镜像不是 DTK+PyTorch，或默认 python 不是主解释器（`conda activate` / `GSV_BASE_PYTHON`） |
 
 ## 11. 与 CANNLab 的拓扑对比
 
-| 维度 | SCNet DCU 容器（B） | CANNLab 昇腾 NPU（A） |
+| 维度 | SCNet DCU（默认走 SSH 直连） | CANNLab 昇腾 NPU |
 |:--|:--|:--|
-| dsh 在哪 | **容器内**（本地只是浏览器） | **本机**（CLI 远程驱动） |
-| 建连 | 平台自定义服务 8082（主）/ SSH 隧道（备） | CLI 自建一次性隧道 |
-| 长命令载体 | 容器内 `setsid` 后台进程 | `cannlab job submit`（setsid+nohup） |
-| 持久目录 | `~/private_data`（NFS） | `/mnt/workspace`、`/home` |
+| dsh 在哪 | **本机**；只有要图形界面时才把 dsh 放进容器 | **本机**（CLI 远程驱动） |
+| 建连 | 官方 `ssh -p <实例端口> root@<网关>`（可用 `~/.ssh/config` 别名） | CLI 自建一次性隧道 |
+| 作业协议 | `scripts/remote_job.sh`（setsid 托管，状态原子写） | `cannlab job submit`（setsid+nohup） |
+| 持久目录 | `~/private_data`（NFS，跨实例复用） | `/mnt/workspace`、`/home` |
 | 回收 | 平台配额与排队，主动关实例 | 按卡时，空闲 30 分钟自动关机 |
-| 典型坑 | 出网代理漂移、设置页不可用、DCU 装错 torch | 隧道断、CANN 未 source、torch_npu 未 import |
-| 复用要点 | 参数化 + 探测 + `run.sh` 持久化参数 | 凭据与隧道全交给 CLI |
+| 典型坑 | SSH 端口只有开机才通、DCU 装错 torch、出网代理漂移 | 隧道断、CANN 未 source、torch_npu 未 import |
+| 共同点 | 本机只负责"发起 + 观察 + 取回"，长任务交给远端托管 | 同左 |

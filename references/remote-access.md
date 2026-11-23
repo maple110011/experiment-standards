@@ -21,6 +21,9 @@
 
 1. **有没有可用的 SSH？** 有 → 直接走拓扑 C：本机 DSH + `ssh` + `scripts/remote_job.sh`。
    这是最直白的一条：不装 Node、不搞转发器、不碰 Host 栅栏，本机就是"发命令的那一侧"。
+
+   > 判断"有没有 SSH"别靠 ping 端口：很多平台（如 SCNet）的 SSH 是**每个实例一个专属端口**，
+   > 只在实例开机期间监听，登录命令要实例页面复制。实例关着时，这些端口当然是黑的。
 2. **没有 SSH、但远端能装 Node 并长驻进程？** → 拓扑 B：把 dsh 装进远端，本地只留浏览器。
    代价是代理、`DSH_HOME`、转发端口、`--trusted-host` 四件事都得自己维护。
 3. **远端既没有 SSH、也装不了 Node？** → 拓扑 A：平台 CLI（如 CANNLab）当一次一条命令的通道。
@@ -162,7 +165,7 @@ bash scripts/remote_job.sh submit --host me --ssh-opts '-p 11042 -i ~/.ssh/id_x'
 | 层 | 症状 | 先查 |
 |:--|:--|:--|
 | 凭据 | 401 / `MISSING_CREDENTIAL` / `尚未登录` | 凭据文件、环境变量优先级、过期时间 |
-| 网络 | 连接超时 / `Connection refused` / 502 | 本机代理与 VPN、远端出网代理、端口是否暴露 |
+| 网络 | 连接超时 / `Connection refused` / 502 | 本机代理与 VPN、远端出网代理、端口是否暴露、**实例是否开机**（平台 SSH 端口是实例级、只在运行期监听） |
 | 信任 | 每个 API 都 403 / `settings are unavailable` | Host 栅栏：loopback？`--trusted-host`？转发器？ |
 | 协议 | helper 启动超时 / LOCK 冲突 / 版本不匹配 | helper 日志；旧进程残留 |
 | 远端环境 | 找不到 `libascendcl` / `torch.npu` 不存在 | 有没有 source 环境；包是否被覆盖 |
