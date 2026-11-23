@@ -57,6 +57,27 @@
       "expected_output": "不要相信 bash 里的 torch.cuda.is_available()；受限 shell 对 /dev/kfd、/dev/dri 只读会误报 False。用 scripts/jupyter_exec.py 通过 Jupyter kernel 执行 GPU 代码，并在 kernel 里调用 capture_environment；长任务用 setsid 包 jupyter_exec 并轮询 results_partial.json",
       "files": ["references/logging-guide.md", "references/long-running-guide.md", "bayes-dl-dcu/references/dcu-adaptation.md"],
       "auto_check": "grep -q 'jupyter_exec.py' references/long-running-guide.md && grep -q 'Jupyter kernel' references/logging-guide.md"
+    },
+    {
+      "id": 9,
+      "prompt": "我想在 DSH 里直接驱动 CANNLab 的昇腾 NPU：从登录到能发一条远端命令，需要配哪些东西？",
+      "expected_output": "先判拓扑：CANNLab 只给 WebIDE/VSCode，走本地 DSH + 命令通道，只调 cannlab CLI 不自己拼 ssh；login 必须用户在浏览器点授权、回调占本机 3000；list/power on 等 running；建环境按 A2 + cann_9.0.0_py3.11-A2-arm + 1*NPU 910B3 32vCPUs，选错只能删环境重建；info 自检以 torch.npu.is_available()==True 为判据；非交互 SSH 不加载 CANN（libc_sec.so / libhccl.so），由 CLI 自动 source set_env.sh；长命令走 job submit（setsid+nohup），成功判据 state=finished 且 exitCode=0；默认 --poweroff-when-done=5，长作业加 guard --max-hours",
+      "files": ["references/remote-access.md", "references/cannlab-guide.md"],
+      "auto_check": "grep -q 'job submit' references/cannlab-guide.md && grep -q 'set_env.sh' references/cannlab-guide.md && grep -q 'poweroff-when-done' references/cannlab-guide.md && grep -q 'trusted-host' references/remote-access.md"
+    },
+    {
+      "id": 10,
+      "prompt": "SCNet 的计算卡容器里 dsh 重启后连不上外网、对话报 Connection error，怎么排查？",
+      "expected_output": "按五段链路定位到网络层：先 env | grep -i proxy + curl -v 确认是否出网代理地址漂移（curl 报 Connection refused 指向旧代理即命中）；向平台要新代理地址、写进 start.sh（不能只 export 一次）；确认 NODE_USE_ENV_PROXY=1（Node 不读 https_proxy）；单独验证实际要用的 LLM 接口；最后 bash start.sh 重建转发器并 curl 自检 3080/8082",
+      "files": ["references/scnet-guide.md"],
+      "auto_check": "grep -q 'NODE_USE_ENV_PROXY' references/scnet-guide.md && grep -q 'start.sh' references/scnet-guide.md && grep -q 'curl -v' references/scnet-guide.md"
+    },
+    {
+      "id": 11,
+      "prompt": "换到一个新的云平台（只给 SSH 和 sbatch），怎么把 DSH 接上去、怎么验证接好了？",
+      "expected_output": "按五段链路（凭据→建连→传输→存活→回收）逐段确认；dsh web 只监听 loopback 且拒绝通配地址，跨机访问用 SSH 隧道（首选）或端口转发并配 --trusted-host（不带端口匹配任意端口，栅栏只放行不认证）；长命令交给远端 sbatch/setsid，不能用本机 DSH job 当载体；代码单向推上去、记 git rev-parse HEAD；按十分钟验证清单 8 条逐条过（凭据/建连/设备/持久盘/长命令载体/传输/回收）；最后填接入记录表（平台、认证、拓扑、建连命令、信任配置、持久盘、载体、回收、已知坑）",
+      "files": ["references/remote-access.md"],
+      "auto_check": "grep -q 'trusted-host' references/remote-access.md && grep -q 'sbatch' references/remote-access.md && grep -q '十分钟验证清单' references/remote-access.md"
     }
   ]
 }

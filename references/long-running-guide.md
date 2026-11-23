@@ -5,6 +5,10 @@
 > 大 batch 优先。全部框架无关；海光 DCU / ROCm 的具体细节见
 > [`bayes-dl-dcu/references/dcu-adaptation.md`](../bayes-dl-dcu/references/dcu-adaptation.md)。
 
+> 跑在**远程机器**上（昇腾 NPU、SCNet 计算卡、SSH 云主机）时，本文的纪律要在远端执行；
+> 但前提是先有一条能用的连接——隧道、凭据、持久盘、长命令载体见 [remote-access.md](./remote-access.md)，
+> 平台专章见 [cannlab-guide.md](./cannlab-guide.md) 与 [scnet-guide.md](./scnet-guide.md)。
+
 ## 为什么长任务需要单独一套纪律
 
 一次训练动辄 30 分钟到数小时，出错代价极高。长任务最常见的失败不是代码错，而是：

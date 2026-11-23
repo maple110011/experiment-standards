@@ -123,6 +123,26 @@ json.dump(report, open(os.path.join(run_dir, "evaluation_report.json"), "w"))
     磁盘成本远低于重训成本。
 11. **checkpoint 完整性**：checkpoint 记录 `format_version` 和 sha256，防止静默损坏；
     用 try-except 包裹 `torch.load`，损坏时回退到上一个可用 checkpoint。
+12. **跑在远端机器上时，`environment.json` 必须在远端采集**（本机采到的是你的笔记本，
+    写进论文就是错的硬件信息），并在 `run_manifest.json` 里补一个 `remote` 段，
+    事后才能算成本、才能复现：
+
+    ```json
+    "remote": {
+      "platform": "cannlab",
+      "job_id": "run1-20261123-1012",
+      "device": "npu:0",
+      "chip": "Ascend910B3",
+      "cards": 1,
+      "started_at": "2026-11-23T10:12:03+08:00",
+      "finished_at": "2026-11-23T11:55:41+08:00",
+      "card_hours": 1.73,
+      "powered_off": true,
+      "local_copy": "runs/pfn/run_20261123_1012"
+    }
+    ```
+
+    连接怎么建、验证与回收见 [remote-access.md](./remote-access.md)。
 
 ## 可选扩展（需要更全面复盘时）
 

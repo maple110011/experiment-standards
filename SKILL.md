@@ -1,7 +1,8 @@
 ---
 name: experiment-standards
-description: 'Always use this skill when the user asks to standardize ML experiment outputs, needs reproducible training infrastructure, or mentions checkpoint management, experiment logging, environment recording, evaluation reports, early stopping, LR scheduling, training resilience (NaN recovery), or output directory structures — even if they don\'t explicitly say "experiment standards". Also trigger when the user complains about 训练中断无法恢复、实验结果无法复现、不同设备跑出来结果不一样、缺少实验记录、不知道怎么加日志/早停/学习率调度/NaN检测、想做 grid search 但输出一团乱、需要规范输出目录结构等任何训练工程化需求, 跑长实验/大模型担心中途挂掉/超时、想先测 1-epoch 基准、batch size 怎么定和缩放、显存/算力怎么监控, or wants large-experiment record packs, run manifests, code snapshots, prediction sample saving, incremental result logging, calibration curves/TensorBoard, temperature scaling / distribution-shift evaluation recording, or hits 受限 shell 里 GPU 不可用/`torch.cuda.is_available()` 误报 False、装包把 HIP torch 覆盖成 CUDA torch、预测概率没落盘导致换指标要重跑. Covers: checkpoint save/resume with sha256 sidecars and damaged-checkpoint fallback, hardware environment capture (CPU/GPU/RAM/DCU/HIP/MPS + driver/package versions), seed recording, training/error log separation, CSV metrics tracking, structured evaluation reports (JSON), model weight export (best/final), output directory specification, early stopping, learning rate scheduling (warmup/decay/cosine), NaN/Inf detection and auto-recovery, DataLoader best practices, memory profiling, batch-size↔learning-rate scaling, long-running background launch and 1-epoch benchmarking, experiment runner (grid search), reusable experiment_recorder for long runs (run manifest, code snapshot, data hash, event timeline, per-method metrics, TensorBoard, prediction probability/mean-variance/sample saving, incremental results, calibration curves, temperature-scaling and distribution-shift logging), and restricted-shell GPU access via Jupyter kernel. Framework-agnostic but includes Pyro/PyTorch examples. Do NOT use for: model architecture design, inference method selection, prior selection, uncertainty calibration — those belong to domain-specific skills.'
-argument-hint: '[任务: checkpoint管理 / 实验日志 / 环境记录 / 早停 / 评估报告 / 输出物规范 / 长任务·大模型训练]'
+description: |-
+  Use this skill whenever the user is building, fixing, or running an ML experiment: checkpoint/resume after a crash, split training and error logs, cross-device environment capture, early stopping and LR scheduling, batch-size↔lr scaling, NaN/OOM recovery, evaluation reports, standard output directory, the experiment_recorder pack (manifest, code snapshot, per-epoch metrics, saved predictions, calibration curves, TensorBoard), long-running launch with 1-epoch benchmarking, cached datasets. Also when the compute is remote — 昇腾 NPU/CANNLab、超算互联网/SCNet 计算卡、SSH 云主机：先选拓扑（本地 DSH+命令通道 / 远端 dsh+浏览器）、凭据与隧道、代理与持久盘、长命令载体、验证与关机关时。 Trigger even if the user only says 跑一下、复现不了、结果对不上、换了机器结果不一样、实验挂了一半、显存不够、batch 该多大、受限 shell 里 GPU 不可用，或问 日志/早停/学习率/输出目录/超参搜索/远程跑实验 怎么弄. Do NOT use for architecture design or inference-method choice (use bayes-dl-dcu for BDL calibration). If the bottleneck is human comprehension rather than compute — 信息过载、跟不上 agent、看不懂结果、分不清噪声与改进、想积累方法洞见 — use collab-lab.
+argument-hint: '[任务: checkpoint管理 / 实验日志 / 环境记录 / 早停 / 评估报告 / 输出物规范 / 长任务·大模型训练 / 远程接入·CANNLab·SCNet]'
 ---
 
 # ML 实验标准化
@@ -178,6 +179,25 @@ Agent 生成的代码必须在训练结束后产生以下文件：
 - **装包保护 HIP torch**：HIP/ROCm 环境里依赖 torch 的 PyPI 包用 `pip install --no-deps`，
   装完检查 `torch.version.hip` 和 `torch.cuda.is_available()`
 
+## 远程接入 (把算力接进 DSH)
+
+本机没卡、卡不够用、或要用昇腾 NPU 时，**先解决的问题不是怎么跑实验，而是怎么让 DSH 够得着那台机器**。
+接法只有三种拓扑，选错会白折腾半天；五段链路（凭据 → 建连 → 传输 → 存活 → 回收）在哪个平台都一样。
+动手前先读 [remote-access.md](./references/remote-access.md)，核心:
+
+- **先选拓扑**：平台只给 WebIDE/SSH、连接要自己建 → 本地 DSH + 命令通道
+  （[cannlab-guide.md](./references/cannlab-guide.md) 昇腾 NPU）；容器能装 Node、出网受限 →
+  dsh 装进远端、本地只留浏览器（[scnet-guide.md](./references/scnet-guide.md) SCNet）；
+  普通云主机 → 本地 DSH + OpenSSH
+- **`dsh web` 只监听 loopback、拒绝通配地址**：跨机访问只能 SSH 隧道 / 平台转发 / CLI 一次性隧道；
+  `--trusted-host` 只是承认 authority，不代替认证
+- **本机的进程 ≠ 远端的进程**：DSH 会清理子进程，长命令必须交给远端 `setsid`/`nohup` 或平台作业系统
+- **代码单向推上去、产物取回来**；每次记下 `git rev-parse HEAD`
+- **回收是链路的最后一段**：跑完自动关机、长作业加时长护栏、确认 stopped 才算结束
+
+✅ **完成标志**: 通过 [remote-access.md](./references/remote-access.md) §7 的 8 条验证
+（凭据 / 建连 / 设备 / 持久盘 / 长命令载体 / 传输 / 回收），再接实验
+
 ## 何时读取参考资源
 
 根据用户的具体需求，选择性读取以下参考文档：
@@ -187,16 +207,22 @@ Agent 生成的代码必须在训练结束后产生以下文件：
 | 加 checkpoint 保存/恢复 | [checkpoint-guide.md](./references/checkpoint-guide.md) | §1-2; Pyro 用户加读 §3 |
 | 加早停 / 调学习率 / batch 缩放 | [training-control.md](./references/training-control.md) | §1 (早停), §2 (LR调度), §2 末 (batch↔lr缩放) |
 | 长任务 / 大模型 / 1-epoch 基准 / 后台运行 | [long-running-guide.md](./references/long-running-guide.md) | 全部 |
+| 建立远程接入 / 选拓扑 / 通道与信任 / 验证清单 / 换平台复用 | [remote-access.md](./references/remote-access.md) | §0 拓扑, §1 五段链路, §3 通道, §7 验证, §9 复用表 |
+| 本地 DSH 遥控昇腾 NPU / CANNLab CLI / 隧道 / job / 卡时 | [cannlab-guide.md](./references/cannlab-guide.md) | §1 协议链, §2 SOP, §4 隧道, §7 job, §8 回收 |
+| 把 dsh 装进 SCNet 容器 / 代理 / DSH_HOME / start.sh | [scnet-guide.md](./references/scnet-guide.md) | §3 通道, §4 代理, §5 配置, §6 start.sh |
 | 记录环境信息 / 配日志 | [logging-guide.md](./references/logging-guide.md) | §1 (环境), §2 (日志), §3 (CSV), §4 (元数据) |
 | 规范输出目录 / 评估报告 / 模型导出 | [output-spec.md](./references/output-spec.md) | §1 (目录), §2 (报告), §3 (导出); Pyro/MCMC 用户加读 §3 后半 |
 | 训练崩溃恢复 / NaN处理 / 内存管理 | [resilience-guide.md](./references/resilience-guide.md) | §1 (NaN), §2 (梯度), §3 (回退), §4 (DataLoader), §5 (内存) |
 | 大型实验记录 / 可复现记录包 / 预测分布保存 / 分布偏移 / 温度缩放 | [recording-guide.md](./references/recording-guide.md) | 全部 |
+| 结果太多看不懂 / 下一步该做什么 / 想积累方法洞见 / 分清噪声与改进 / 想从实际问题里长出理论问题 | [`collab-lab/SKILL.md`](./collab-lab/SKILL.md) | 全部（人机协作回路 + 三级台账） |
 
 
 ## 领域相关 Skill
 
-本仓库同时包含子 skill **`bayes-dl-dcu/`**，负责贝叶斯深度学习的方法选择、
-校准指标、分布偏移/OOD、DCU 适配和大模型训练经验：
+本仓库同时包含两个子 skill，各自负责本 skill 不覆盖的部分：
+
+**`bayes-dl-dcu/`** — 贝叶斯深度学习的方法选择、校准指标、分布偏移/OOD、
+DCU 适配和大模型训练经验：
 
 - **海光 DCU / ROCm/HIP 环境记录与 Pyro 设备恢复**：`environment_capture.py` 模板已处理
   硬件识别；DCU 适配、Pyro 恢复细节、算子编译 warmup 等见
@@ -206,6 +232,25 @@ Agent 生成的代码必须在训练结束后产生以下文件：
   [`bayes-dl-dcu/SKILL.md`](./bayes-dl-dcu/SKILL.md)。
 - 生成 BDL 实验代码时，两个 skill 配合使用：本 skill 负责工程基础设施和记录包，
   `bayes-dl-dcu` 负责方法对比协议、校准评估和分布偏移实验设计。
+
+**`collab-lab/`** — 人机协作回路。本 skill 的产出物是给机器复现用的（run manifest、
+events、预测分布），`collab-lab` 负责把它们变成**人能判断**的形状：
+
+- **什么时候用**：agent 跑得比人读得快、结果一多就失去方向、分不清分数变化是噪声
+  还是改进、想同时积累对实际问题的考察和对方法本身的洞见、**想从实际问题里生发出
+  可探索的理论问题**。
+- **三层回路**：L1 执行与记录（本 skill，不动）→ L2 预注册协议块（跑之前先定判据，
+  人批准）→ L3 摘要卡 + 决策卡 + 三级台账（人决策，agent 不自作主张）。
+- **三级台账**：问题台账（这个实际问题长什么样）→ 方法台账（这个方法在此条件下
+  怎么回事，必须是可证伪的主张）→ **理论台账**（实践需要而方法给不了、且现有框架
+  解释不了的东西；这是"从实际问题里长出理论问题"的唯一去处）。第三层用
+  `collab-lab/references/theory-ladder.md` 的七级梯子生成，两条机械把关：张力必须
+  含数字、理论问题里不许出现"怎么/如何让"。
+- **硬闸门**：一个闸门 = 一个协议块；跑完必须等人回答；批准前不写消耗算力的代码。
+- **可执行检查**：`collab-lab/scripts/score_noise_floor.py`（评测噪声下界与最小可检测
+  效应）、`collab-lab/scripts/check_collab_artifacts.py`（摘要卡/协议块/三级台账校验、
+  反向自检、evals 执行器）。
+- 详见 [`collab-lab/SKILL.md`](./collab-lab/SKILL.md)。
 
 ## 可复用模板
 
@@ -246,4 +291,9 @@ Agent 生成的代码必须在训练结束后产生以下文件：
 
 # 长任务/大模型训练
 /experiment-standards 我要跑一个 30 分钟的大实验，帮我先测 1-epoch 基准、后台启动并记录显存
+
+# 远程接入
+/experiment-standards 我想在 DSH 里直接驱动 CANNLab 的昇腾 NPU，从登录到能发一条远端命令，要配哪些东西？
+/experiment-standards SCNet 的计算卡容器里想常驻一个 dsh、本地浏览器遥控，容器重启后怎么一条命令恢复？
+/experiment-standards 换一个新的云平台（只有 SSH + sbatch），怎么把 DSH 接上去、怎么验证？
 ```
