@@ -24,7 +24,7 @@ collab-lab  ← 人在回路：预注册 / 摘要 / 决策 / 台账
 
 - 训练脚本需要 checkpoint/断点续训、日志、环境记录、早停、异常恢复、评估报告
 - 要跑长实验（几十分钟以上）或大模型，担心中途挂掉/超时，需要监控显存和算力
-- **要建立远程接入**（CANNLab 昇腾 NPU、超算互联网/SCNet 海光 DCU、SSH 云主机）——三种拓扑怎么选、凭据与隧道、`dsh web` 的 loopback/Host 栅栏、出网代理、持久盘、长命令载体、验证清单与回收
+- **要建立远程接入**（CANNLab 昇腾 NPU、超算互联网/SCNet 海光 DCU、SSH 云主机、Kaggle 免费 GPU）——三种拓扑怎么选、凭据与隧道、`dsh web` 的 loopback/Host 栅栏、出网代理、持久盘、长命令载体、验证清单与回收
 - 要多方法对比或写论文，需要标准化记录包、预测分布落盘、校准曲线/TensorBoard
 - 要比较贝叶斯深度学习方法、做不确定度校准、在 DCU/HIP 上跑 PyTorch/Pyro（用 `bayes-dl-dcu`）
 - **Agent 跑得比你读得快，结果一多就失去方向，或分不清是噪声还是真改进（用 `collab-lab`）**
@@ -81,7 +81,8 @@ experiment-standards/
 │   ├── long-running-guide.md         # 长任务/大模型训练工程
 │   ├── remote-access.md              # 远程接入：选拓扑 / 五段链路 / 通道与信任 / 验证 / 复用
 │   ├── cannlab-guide.md              # 本地 DSH 遥控昇腾 NPU（CANNLab CLI）
-│   └── scnet-guide.md                # SCNet 海光 DCU 接入：SSH 直连优先，容器内 dsh 兜底
+│   ├── scnet-guide.md                # SCNet 海光 DCU 接入：SSH 直连优先，容器内 dsh 兜底
+│   └── kaggle-guide.md               # Kaggle 免费 T4：拓扑 A′，没有 SSH 的平台 API 批次作业
 ├── evals/
 │   ├── evals.json                    # 测试 prompt（含远程接入场景）
 │   └── run_evals.py                  # 自动单元测试 / 输出校验 / DCU 环境校验

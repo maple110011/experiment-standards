@@ -10,3 +10,6 @@ runs/
 *.png
 *.log
 .DS_Store
+jobstate/
+vendor/
+.kaggle/

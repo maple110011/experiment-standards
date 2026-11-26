@@ -4,8 +4,9 @@
 > 接上之后的实验仍按 [SKILL.md](../SKILL.md) 的 7 步走；产物落盘见 [output-spec.md](./output-spec.md)，
 > 记录包见 [recording-guide.md](./recording-guide.md)，长跑纪律见 [long-running-guide.md](./long-running-guide.md)。
 >
-> 两个现成样本：[cannlab-guide.md](./cannlab-guide.md)（拓扑 A：本地 DSH 遥控昇腾 NPU）·
-> [scnet-guide.md](./scnet-guide.md)（拓扑 B：把 dsh 装进 SCNet 计算卡容器）。
+> 三个现成样本：[cannlab-guide.md](./cannlab-guide.md)（拓扑 A：本地 DSH 遥控昇腾 NPU）·
+> [scnet-guide.md](./scnet-guide.md)（拓扑 B：把 dsh 装进 SCNet 计算卡容器）·
+> [kaggle-guide.md](./kaggle-guide.md)（拓扑 A′：没有 SSH，用平台 API 批次作业，免费 T4）。
 
 ## 0. 先选拓扑：DSH 放在哪一侧
 
@@ -16,6 +17,7 @@
 | 平台只给 WebIDE / SSH，连接要自己建 | 不必 | **A：DSH 在本地，命令通道到远端** | CANNLab 昇腾 NPU |
 | 一台 Linux 容器，出网受限，但能装 Node | 能 | **B：dsh 装在远端，本地只留浏览器** | SCNet 计算卡容器 |
 | 普通 SSH 云主机 / 跳板机 | 可选 | **C：本地 DSH + OpenSSH** | 学校/实验室服务器 |
+| 只接受「提交脚本/作业」，不给 SSH 也不让装 Node | 不必 | **A′：本地 DSH + 平台 API 批次作业** | Kaggle 免费 T4 |
 
 按顺序问三条（**先问能不能最省事，再问好不好用**）：
 
@@ -27,6 +29,9 @@
 2. **没有 SSH、但远端能装 Node 并长驻进程？** → 拓扑 B：把 dsh 装进远端，本地只留浏览器。
    代价是代理、`DSH_HOME`、转发端口、`--trusted-host` 四件事都得自己维护。
 3. **远端既没有 SSH、也装不了 Node？** → 拓扑 A：平台 CLI（如 CANNLab）当一次一条命令的通道。
+4. **平台连命令通道都不给，只接受「提交一个脚本、平台帮你跑」？** → 拓扑 A′（批次作业平台，代表 Kaggle）。
+   它与 A/B/C 的关键差别：不能执行任意 shell、通常没有持久盘、日志与产物都靠平台 API 拉取；
+   因此「成功」不能只看平台状态——必须让作业自己写 `result.json`，主机侧校验 `exit_code=0`。
 
 **别把有 SSH 的情况做成 B。** 装 dsh 进容器只在"根本发不出命令"时才划算；一旦有命令通道，
 多出来的每一层（转发器、信任白名单、出网代理）都是故障点，而不是能力。
@@ -110,6 +115,37 @@ bash scripts/remote_job.sh submit --host me --ssh-opts '-p 11042 -i ~/.ssh/id_x'
 
 所以"像 CANNLab 那样直接"其实不需要 CANNLab：**一个 bash 脚本 + 平台给的 SSH 就是同一套语义**。
 
+## 3c. 没有 SSH：平台 API 批次作业（以 Kaggle 为例）
+
+拓扑 A′ 没有 `setsid`/`nohup` 可用，作业语义只能从平台 API 借。Kaggle 上的五条命令：
+
+```bash
+kaggle kernels push   -p <staging> --accelerator NvidiaTeslaT4 -t 28800  # 提交（-t 是超时秒数）
+kaggle kernels status  <owner>/<slug>                                     # 状态
+kaggle kernels logs    <owner>/<slug> [-f]                                # 日志（-f 跟随）
+kaggle kernels output  <owner>/<slug> -p <out>                            # 取回产物
+kaggle kernels list    -m --page-size 5                                   # 我最近的内核
+```
+
+本仓库的 [`scripts/kaggle_job.py`](../scripts/kaggle_job.py) 把它们封装成与 `remote_job.sh` 同语义的接口：
+
+```bash
+python scripts/kaggle_job.py doctor / quota / submit / status / logs / fetch / list
+python scripts/kaggle_job.py submit --name exp1 --file job.py --timeout-seconds 28800
+python scripts/kaggle_job.py status --name exp1 --wait 3600 --interval 30
+```
+
+A′ 上必须多写一份「脚本契约」（这是它和 A/B/C 最大的不同）：
+
+| 文件 | 为什么必须 |
+|:--|:--|
+| `/kaggle/working/environment.json` | 平台不采集环境，硬件信息只能作业自己写 |
+| `/kaggle/working/run.log` | 日志要能随产物取回，而不是只留在平台网页里 |
+| `/kaggle/working/result.json` | 平台只报「跑完/没跑完」，真实退出码与指标必须由作业自己表达 |
+
+两条硬规则：**不要替换 `sys.stdout/stderr`**（平台会误判 ERROR），**不要在末尾 `sys.exit()`**（会被当异常）。
+完整字段、额度、失败分层与验证清单见 [kaggle-guide.md](./kaggle-guide.md)。
+
 ## 4. ③ 传输：单向，且每次记 HEAD
 
 - 代码**只从本地推上去**；远端产生的一切（checkpoint、日志、run 目录）**取回来**，不要在远端改代码再手抄回来。
@@ -158,6 +194,10 @@ bash scripts/remote_job.sh submit --host me --ssh-opts '-p 11042 -i ~/.ssh/id_x'
 
 ✅ **完成标志**：8 条全过，才把"能连接"升级为"能交付"。
 
+> **A′（无 SSH）平台的替换判据**：第 2 条改成「能提交并查到状态」；第 5 条改成「产物能取回且内容一致」；
+> 第 6 条改成「提交一个 10 分钟的作业，本机断开后它仍 RUNNING」；第 8 条改成「额度用量随运行增长、结束后停止增长」。
+> 可执行版本见 [kaggle-guide.md](./kaggle-guide.md) §6。
+
 ## 8. 失败分层：先定位在哪一段
 
 按五段顺序排查，别一上来就重装。
@@ -198,6 +238,20 @@ bash scripts/remote_job.sh submit --host me --ssh-opts '-p 11042 -i ~/.ssh/id_x'
 | 长命令载体 | 平台作业 / setsid |
 | 回收 | 关机命令、空闲规则 |
 | 已知坑 | |
+
+本次 Kaggle（A′）的实测记录，可直接当模板抄：
+
+| 字段 | 本次记录 |
+|:--|:--|
+| 平台 / 入口 URL | Kaggle，免费 GPU T4×2 |
+| 认证方式 | API token，`~/.kaggle/access_token`；前提手机验证 |
+| 拓扑 | A′（平台 API 批次作业） |
+| 建连命令 | 无 SSH；`python scripts/kaggle_job.py submit/status/logs/fetch` |
+| 信任配置 | 无（HTTPS 公网 API） |
+| 持久盘 | 无；`/kaggle/working` 20GB，关机即丢 |
+| 长命令载体 | 平台 kernel（单次 9–12 小时） |
+| 回收 | 30 GPU 小时/周硬额度；CLI 没有 cancel |
+| 已知坑 | stdout 劫持导致平台 ERROR；TabPFN 需要 `TABPFN_TOKEN`；20GB 爆盘；每次重建环境 |
 
 ## 10. 接上之后，只有三条会直接影响实验正确性
 

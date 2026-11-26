@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# kaggle CLI 的 DSH 侧包装：把 vendor 里的 CLI 与 workspace 内的配置目录接起来。
+# 用法：bash pfn-compute-research/scripts/kaggle quota --format json
+set -u
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export PYTHONPATH="${ROOT}/vendor/site${PYTHONPATH:+:$PYTHONPATH}"
+export KAGGLE_CONFIG_DIR="${KAGGLE_CONFIG_DIR:-${ROOT}/.kaggle}"
+mkdir -p "$KAGGLE_CONFIG_DIR"
+exec python -c 'import sys; sys.argv = ["kaggle"] + sys.argv[1:]; from kaggle.cli import main; main()' "$@"

@@ -1,8 +1,8 @@
 ---
 name: experiment-standards
 description: |-
-  Use this skill whenever the user is building, fixing, or running an ML experiment: checkpoint/resume after a crash, split training and error logs, cross-device environment capture, early stopping and LR scheduling, batch-size↔lr scaling, NaN/OOM recovery, evaluation reports, standard output directory, the experiment_recorder pack (manifest, code snapshot, per-epoch metrics, saved predictions, calibration curves, TensorBoard), long-running launch with 1-epoch benchmarking, cached datasets. Also when the compute is remote — 昇腾 NPU/CANNLab、超算互联网/SCNet 海光 DCU、SSH 云主机：先选拓扑（本地 DSH+命令通道 / 远端 dsh+浏览器）、凭据与隧道、代理与持久盘、长命令载体、验证与关机关时。 Trigger even if the user only says 跑一下、复现不了、结果对不上、换了机器结果不一样、实验挂了一半、显存不够、batch 该多大、受限 shell 里 GPU 不可用，或问 日志/早停/学习率/输出目录/超参搜索/远程跑实验 怎么弄. Do NOT use for architecture design or inference-method choice (use bayes-dl-dcu for BDL calibration). If the bottleneck is human comprehension rather than compute — 信息过载、跟不上 agent、看不懂结果、分不清噪声与改进、想积累方法洞见 — use collab-lab.
-argument-hint: '[任务: checkpoint管理 / 实验日志 / 环境记录 / 早停 / 评估报告 / 输出物规范 / 长任务·大模型训练 / 远程接入·CANNLab·SCNet]'
+  Use this skill whenever the user is building, fixing, or running an ML experiment: checkpoint/resume after a crash, split training and error logs, cross-device environment capture, early stopping and LR scheduling, batch-size↔lr scaling, NaN/OOM recovery, evaluation reports, standard output directory, the experiment_recorder pack (manifest, code snapshot, per-epoch metrics, saved predictions, calibration curves, TensorBoard), long-running launch with 1-epoch benchmarking, cached datasets. Also when the compute is remote — 昇腾 NPU/CANNLab、超算互联网/SCNet 海光 DCU、SSH 云主机、Kaggle 免费 GPU（没有 SSH，只能用平台 API 提交/查状态/取回产物）：先选拓扑（本地 DSH+命令通道 / 远端 dsh+浏览器 / 平台 API 批次作业）、凭据与隧道、代理与持久盘、长命令载体、验证与关机关时。 Trigger even if the user only says 跑一下、复现不了、结果对不上、换了机器结果不一样、实验挂了一半、显存不够、batch 该多大、受限 shell 里 GPU 不可用，或问 日志/早停/学习率/输出目录/超参搜索/远程跑实验 怎么弄. Do NOT use for architecture design or inference-method choice (use bayes-dl-dcu for BDL calibration). If the bottleneck is human comprehension rather than compute — 信息过载、跟不上 agent、看不懂结果、分不清噪声与改进、想积累方法洞见 — use collab-lab.
+argument-hint: '[任务: checkpoint管理 / 实验日志 / 环境记录 / 早停 / 评估报告 / 输出物规范 / 长任务·大模型训练 / 远程接入·CANNLab·SCNet·Kaggle免费GPU]'
 ---
 
 # ML 实验标准化
@@ -198,6 +198,9 @@ Agent 生成的代码必须在训练结束后产生以下文件：
 - **本机的进程 ≠ 远端的进程**：DSH 会清理子进程，长命令必须交给远端 `setsid`/`nohup` 或平台作业系统
 - **代码单向推上去、产物取回来**；每次记下 `git rev-parse HEAD`
 - **回收是链路的最后一段**：跑完自动关机、长作业加时长护栏、确认 stopped 才算结束
+- **没有 SSH 的免费 GPU（Kaggle）走拓扑 A′**：用平台 CLI 提交/查状态/取回产物；不能执行任意 shell、没有持久盘、单次 9–12 小时、30 GPU 小时/周。
+  成功判据不能只看平台状态——作业必须自己写 `result.json`（含 `exit_code`），主机侧校验 `exit_code=0`；
+  作业脚本里**不要替换 `sys.stdout/stderr`**、**不要 `sys.exit()`**，否则平台会把成功作业标成 ERROR。见 [kaggle-guide.md](./references/kaggle-guide.md)。
 
 ✅ **完成标志**: 通过 [remote-access.md](./references/remote-access.md) §7 的 8 条验证
 （凭据 / 建连 / 设备 / 持久盘 / 长命令载体 / 传输 / 回收），再接实验
@@ -213,6 +216,8 @@ Agent 生成的代码必须在训练结束后产生以下文件：
 | 长任务 / 大模型 / 1-epoch 基准 / 后台运行 | [long-running-guide.md](./references/long-running-guide.md) | 全部 |
 | 建立远程接入 / 选拓扑 / 通道与信任 / 验证清单 / 换平台复用 | [remote-access.md](./references/remote-access.md) | §0 拓扑, §1 五段链路, §3 通道, §3b SSH 作业协议, §7 验证, §9 复用表 |
 | 用 SSH 在远端跑长作业（提交/状态/日志/终止/取回） | [scripts/remote_job.sh](./scripts/remote_job.sh) | 全部（`--help`） |
+| Kaggle 免费 GPU / 没有 SSH 的平台 / 平台 API 作业协议 / TabPFN 权重许可 / 20GB 工作盘 | [kaggle-guide.md](./references/kaggle-guide.md) | §0 适用性, §2 凭据, §3 作业协议, §4 脚本契约（必读）, §6 验证, §7 失败分层 |
+| 用 Kaggle 免费 GPU 跑作业（提交/状态/日志/取回） | [scripts/kaggle_job.py](./scripts/kaggle_job.py) | 全部（`--help`）；模板在 `scripts/templates/` |
 | 本地 DSH 遥控昇腾 NPU / CANNLab CLI / 隧道 / job / 卡时 | [cannlab-guide.md](./references/cannlab-guide.md) | §1 协议链, §2 SOP, §4 隧道, §7 job, §8 回收 |
 | SCNet 海光 DCU 接入 / SSH 直连 / 无 SSH 兜底 / DCU 实验纪律 | [scnet-guide.md](./references/scnet-guide.md) | §0 三种形态, §0.6 SSH 事实, §1 通道, §9 DCU 实验 |
 | 记录环境信息 / 配日志 | [logging-guide.md](./references/logging-guide.md) | §1 (环境), §2 (日志), §3 (CSV), §4 (元数据) |
