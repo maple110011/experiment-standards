@@ -1,0 +1,7 @@
+# 运行 evals/run_evals.py 的模板单元测试需要（CI 不装，本地按需）
+torch>=2.0
+numpy>=1.24
+
+# assets/templates/experiment_recorder.py 画图/写 TensorBoard 时按需导入
+# matplotlib>=3.7
+# tensorboard>=2.14

@@ -30,7 +30,7 @@ GitCode OAuth ─access token─► CANNLab OpenAPI
 | OpenSSH 客户端 | 任意 | OpenSSH_for_Windows_9.5p1 |
 | 网络 | **必须关闭代理/VPN**（官方要求） | 已验证可直连 |
 | WSL / 管理员权限 | 不需要 | 均无 |
-| CLI 位置 | `<工作区>/research/cannlab/bin/cannlab.mjs` | `E:\software\ss\research\cannlab` |
+| CLI 位置 | `<工作区>/research/cannlab/bin/cannlab.mjs` | `<工作区>/research/cannlab` |
 
 把规则装进 DSH（让它自动发现"用 CLI、不拼 ssh、长任务走 job"）：
 

@@ -13,3 +13,20 @@ runs/
 jobstate/
 vendor/
 .kaggle/
+
+# 凭据与本地环境（绝不入库）
+.env
+.env.*
+*.pem
+*.key
+secrets*
+credentials*
+
+# 工具缓存与编辑器
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+.vscode/
+.idea/
+.tmp/

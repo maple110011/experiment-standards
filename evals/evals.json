@@ -6,78 +6,121 @@
       "id": 1,
       "prompt": "给我的训练脚本加上 checkpoint 和 early stopping",
       "expected_output": "生成的代码包含 CheckpointManager 类和 EarlyStopper 类，checkpoint 包含完整状态（参数+optimizer+RNG+config），支持断点续训，CheckpointManager/EarlyStopper 都支持 mode='min'/'max'",
-      "files": ["assets/templates/checkpoint_manager.py", "assets/templates/early_stopper.py"],
+      "files": [
+        "assets/templates/checkpoint_manager.py",
+        "assets/templates/early_stopper.py"
+      ],
       "auto_check": "python evals/run_evals.py"
     },
     {
       "id": 2,
       "prompt": "帮我标准化这个实验的输出——需要环境记录、日志、评估报告",
       "expected_output": "包含 environment.json（CPU/GPU/RAM + torch.version.hip）、seed.json、拆分 training.log + errors.log、evaluation_report.json、best_model.pt",
-      "files": ["assets/templates/environment_capture.py", "assets/templates/evaluation_report.py"],
+      "files": [
+        "assets/templates/environment_capture.py",
+        "assets/templates/evaluation_report.py"
+      ],
       "auto_check": "python evals/run_evals.py --check-outputs <outputs_dir>"
     },
     {
       "id": 3,
       "prompt": "这个训练经常中途崩溃，怎么加异常恢复？",
       "expected_output": "包含 NaN/Inf 检测代码、异常时自动回退 checkpoint、梯度爆炸检测/裁剪、自动降 lr 重试机制、OOM 恢复",
-      "files": ["references/resilience-guide.md"],
+      "files": [
+        "references/resilience-guide.md"
+      ],
       "auto_check": "grep -q 'isfinite' references/resilience-guide.md"
     },
     {
       "id": 4,
       "prompt": "在 DCU/ROCm 上跑实验，环境记录要正确识别加速卡",
       "expected_output": "environment.json 中 gpu.available=true，device_0.gcn_arch 存在，torch_config.hip_version 非空，torch_config.cuda_version 为 null",
-      "files": ["assets/templates/environment_capture.py"],
+      "files": [
+        "assets/templates/environment_capture.py"
+      ],
       "auto_check": "python evals/run_evals.py --check-dcu-env <outputs_dir>/environment.json"
     },
     {
       "id": 5,
       "prompt": "我要跑一个很长的实验，结果必须完整可复查：代码、配置、数据、环境、训练曲线、预测样本、中间结果都不能丢",
       "expected_output": "使用 experiment_recorder.py 生成 runs/<experiment>/run_<timestamp>/ 记录包：run_manifest.json、code/ 快照、events.jsonl、training/<method>_metrics.csv、tb/ TensorBoard events、predictions/*_probs.npy、results_partial.json、evaluation_report.json、figures/ 校准曲线、checkpoints/ 权重",
-      "files": ["assets/templates/experiment_recorder.py", "references/recording-guide.md"],
+      "files": [
+        "assets/templates/experiment_recorder.py",
+        "references/recording-guide.md"
+      ],
       "auto_check": "python evals/run_evals.py"
     },
     {
       "id": 6,
       "prompt": "我要跑一个 30 分钟的大模型实验，怎么保证中途不丢结果、batch 选多大、显存和算力怎么监控？",
       "expected_output": "先做 1-epoch 基准（耗时/峰值显存/loss下降）再定全量配置；长任务 setsid/后台启动且超时留余量；增量写 results_partial.json；gpu_memory_gb 记录 + 定期看 allocated/reserved；大数据转 .npz 缓存；大 batch 优先并做 lr 线性/平方根缩放，先测吞吐再定 batch",
-      "files": ["references/long-running-guide.md", "references/training-control.md"],
+      "files": [
+        "references/long-running-guide.md",
+        "references/training-control.md"
+      ],
       "auto_check": "grep -q '1-epoch' references/long-running-guide.md && grep -q 'setsid' references/long-running-guide.md && grep -q '平方根' references/training-control.md"
     },
     {
       "id": 7,
       "prompt": "我跑完长实验才发现预测概率没保存，换指标/补校准图都要重跑。以后怎么避免？记录包里还需要保存哪些东西？",
       "expected_output": "使用 experiment_recorder：分类 save_probs、回归 save_regression_predictions、采样类 save_samples_npz 保存预测分布；save_split_indices 保存切分；每方法完成 update_results_json；update_shift_results_json 写分布偏移结果；save_temperature_scaling 写后校准；log_exception 写异常堆栈；save_model_weights 保存 best/final 权重；log_epoch 逐 epoch 写 train/val 指标并写 TensorBoard",
-      "files": ["assets/templates/experiment_recorder.py", "references/recording-guide.md"],
+      "files": [
+        "assets/templates/experiment_recorder.py",
+        "references/recording-guide.md"
+      ],
       "auto_check": "grep -q 'save_regression_predictions' assets/templates/experiment_recorder.py && grep -q 'save_temperature_scaling' assets/templates/experiment_recorder.py && grep -q 'save_split_indices' references/recording-guide.md"
     },
     {
       "id": 8,
       "prompt": "在受限 shell 里 torch.cuda.is_available() 返回 False，但机器上明明有海光 DCU，怎么才能跑 GPU 实验并记录真实环境？",
       "expected_output": "不要相信 bash 里的 torch.cuda.is_available()；受限 shell 对 /dev/kfd、/dev/dri 只读会误报 False。用 scripts/jupyter_exec.py 通过 Jupyter kernel 执行 GPU 代码，并在 kernel 里调用 capture_environment；长任务用 setsid 包 jupyter_exec 并轮询 results_partial.json",
-      "files": ["references/logging-guide.md", "references/long-running-guide.md", "bayes-dl-dcu/references/dcu-adaptation.md"],
+      "files": [
+        "references/logging-guide.md",
+        "references/long-running-guide.md",
+        "bayes-dl-dcu/references/dcu-adaptation.md"
+      ],
       "auto_check": "grep -q 'jupyter_exec.py' references/long-running-guide.md && grep -q 'Jupyter kernel' references/logging-guide.md"
     },
     {
       "id": 9,
       "prompt": "我想在 DSH 里直接驱动 CANNLab 的昇腾 NPU：从登录到能发一条远端命令，需要配哪些东西？",
       "expected_output": "先判拓扑：CANNLab 只给 WebIDE/VSCode，走本地 DSH + 命令通道，只调 cannlab CLI 不自己拼 ssh；login 必须用户在浏览器点授权、回调占本机 3000；list/power on 等 running；建环境按 A2 + cann_9.0.0_py3.11-A2-arm + 1*NPU 910B3 32vCPUs，选错只能删环境重建；info 自检以 torch.npu.is_available()==True 为判据；非交互 SSH 不加载 CANN（libc_sec.so / libhccl.so），由 CLI 自动 source set_env.sh；长命令走 job submit（setsid+nohup），成功判据 state=finished 且 exitCode=0；默认 --poweroff-when-done=5，长作业加 guard --max-hours",
-      "files": ["references/remote-access.md", "references/cannlab-guide.md"],
+      "files": [
+        "references/remote-access.md",
+        "references/cannlab-guide.md"
+      ],
       "auto_check": "grep -q 'job submit' references/cannlab-guide.md && grep -q 'set_env.sh' references/cannlab-guide.md && grep -q 'poweroff-when-done' references/cannlab-guide.md && grep -q 'trusted-host' references/remote-access.md"
     },
     {
       "id": 10,
       "prompt": "我要在 SCNet 的海光 DCU 实例上跑训练，并在本机 DSH 里驱动它，最省事的接法是什么？",
       "expected_output": "先查平台有没有 SSH：SCNet 官方支持，登录命令在实例页面复制（root@<网关> -p <实例专属端口>），端口重启不变、只在开机期间监听——不要用 22 端口不通就断定没有 SSH；有 SSH 就走拓扑 C：~/.ssh/config 写别名，用 scripts/remote_job.sh 的 doctor/submit/status/logs/stop/ship/fetch 管理作业，远端只需 bash+setsid，容器里不装 dsh；只有拿不到 SSH 才退回容器内 dsh + 自定义服务端口（转发器 + --trusted-host + 代理探测 + run.sh）；作业成功判据 state=finished 且 exit_code=0，长命令必须 setsid 托管",
-      "files": ["references/scnet-guide.md", "scripts/remote_job.sh"],
+      "files": [
+        "references/scnet-guide.md",
+        "scripts/remote_job.sh"
+      ],
       "auto_check": "grep -q 'ssh-keygen -R' references/scnet-guide.md && grep -q 'remote_job.sh' references/scnet-guide.md && grep -q '实例页面' references/scnet-guide.md"
     },
     {
       "id": 11,
       "prompt": "换到一个新的云平台（只给 SSH 和 sbatch），怎么把 DSH 接上去、怎么验证接好了？",
       "expected_output": "按五段链路（凭据→建连→传输→存活→回收）逐段确认；dsh web 只监听 loopback 且拒绝通配地址，跨机访问用 SSH 隧道（首选）或端口转发并配 --trusted-host（不带端口匹配任意端口，栅栏只放行不认证）；长命令交给远端 sbatch/setsid，不能用本机 DSH job 当载体；代码单向推上去、记 git rev-parse HEAD；按十分钟验证清单 8 条逐条过（凭据/建连/设备/持久盘/长命令载体/传输/回收）；最后填接入记录表（平台、认证、拓扑、建连命令、信任配置、持久盘、载体、回收、已知坑）",
-      "files": ["references/remote-access.md", "scripts/remote_job.sh"],
+      "files": [
+        "references/remote-access.md",
+        "scripts/remote_job.sh"
+      ],
       "auto_check": "grep -q 'trusted-host' references/remote-access.md && grep -q 'sbatch' references/remote-access.md && grep -q '十分钟验证清单' references/remote-access.md && grep -q 'remote_job.sh' references/remote-access.md"
+    },
+    {
+      "id": 12,
+      "prompt": "我要用 Kaggle 的免费 T4 跑一个 PFN 评测，但平台没有 SSH，怎么从本地提交、看状态、取回产物，怎么确认它真的成功了？",
+      "expected_output": "推荐拓扑 A′：用 scripts/kaggle_job.py（或原生 kaggle kernels push/status/logs/output）。成功判据是平台 COMPLETE 且作业自己写的 result.json 里 exit_code=0；作业脚本必须写 environment.json/run.log/result.json，不能替换 sys.stdout、不要调用 sys.exit；提醒 20GB 工作盘关机即丢、30 GPU 小时/周、单次 9–12 小时、CLI 没有 cancel；TabPFN 2.x 还需要 TABPFN_TOKEN（Kaggle Secrets）。",
+      "files": [
+        "references/kaggle-guide.md",
+        "scripts/kaggle_job.py",
+        "scripts/templates/kaggle_entry.py"
+      ],
+      "auto_check": "bash scripts/selftest_kaggle.sh"
     }
   ]
 }

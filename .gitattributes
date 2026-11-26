@@ -1,0 +1,15 @@
+# 统一行尾：文本用 LF，二进制不要转换
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.pt binary
+*.pth binary
+*.npy binary
+*.npz binary

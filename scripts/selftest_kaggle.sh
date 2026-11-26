@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# selftest.sh - 不依赖账号，用假 CLI 回归 kaggle_job.py 的全部状态分支。
-# 用法：bash pfn-compute-research/scripts/selftest.sh
+# selftest_kaggle.sh - 不依赖账号，用假 CLI 回归 kaggle_job.py 的全部状态分支。
+# 用法（在仓库根目录）：bash scripts/selftest_kaggle.sh
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 cd "$HERE/.." || exit 1

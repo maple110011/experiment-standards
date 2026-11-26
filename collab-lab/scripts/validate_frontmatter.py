@@ -15,7 +15,7 @@ r"""按 skill-creator 的规则校验各 skill 的 `SKILL.md` frontmatter。
 
 ## 顺带修的第二处：路径硬编码
 
-原版本把仓库根写成绝对路径 `E:\software\ss\...`，换个位置就**三个 skill 全报
+原版本把仓库根写成绝对路径（如 `E:\...\experiment-standards`），换个位置就**三个 skill 全报
 "SKILL.md not found"**。现在根目录由**脚本位置**推导，也可用 `--root` 覆盖。
 
 ## 校验规则（来自 skill-creator）

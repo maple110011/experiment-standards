@@ -117,34 +117,18 @@ bash scripts/remote_job.sh submit --host me --ssh-opts '-p 11042 -i ~/.ssh/id_x'
 
 ## 3c. 没有 SSH：平台 API 批次作业（以 Kaggle 为例）
 
-拓扑 A′ 没有 `setsid`/`nohup` 可用，作业语义只能从平台 API 借。Kaggle 上的五条命令：
+拓扑 A′ 没有 `setsid`/`nohup` 可用，作业语义只能从平台 API 借：Kaggle 用
+`kaggle kernels push / status / logs / output`（提交 / 状态 / 日志 / 取回），
+本仓库的 [`scripts/kaggle_job.py`](../scripts/kaggle_job.py) 把它们封装成与 `remote_job.sh` 同语义的
+`doctor / quota / submit / status / logs / fetch / list`。
 
-```bash
-kaggle kernels push   -p <staging> --accelerator NvidiaTeslaT4 -t 28800  # 提交（-t 是超时秒数）
-kaggle kernels status  <owner>/<slug>                                     # 状态
-kaggle kernels logs    <owner>/<slug> [-f]                                # 日志（-f 跟随）
-kaggle kernels output  <owner>/<slug> -p <out>                            # 取回产物
-kaggle kernels list    -m --page-size 5                                   # 我最近的内核
-```
+A′ 与 A/B/C 最大的不同是**平台只报「跑完/没跑完」**，所以作业必须自己写三件东西：
+`environment.json`（硬件信息）、`run.log`、`result.json`（含 `exit_code`）；
+主机侧的成功判据是「平台状态完成 **且** `result.json` 的 `exit_code == 0`」。
+作业脚本里不能替换 `sys.stdout/stderr`、不要 `sys.exit()`（否则平台会把成功作业标成 ERROR）。
 
-本仓库的 [`scripts/kaggle_job.py`](../scripts/kaggle_job.py) 把它们封装成与 `remote_job.sh` 同语义的接口：
-
-```bash
-python scripts/kaggle_job.py doctor / quota / submit / status / logs / fetch / list
-python scripts/kaggle_job.py submit --name exp1 --file job.py --timeout-seconds 28800
-python scripts/kaggle_job.py status --name exp1 --wait 3600 --interval 30
-```
-
-A′ 上必须多写一份「脚本契约」（这是它和 A/B/C 最大的不同）：
-
-| 文件 | 为什么必须 |
-|:--|:--|
-| `/kaggle/working/environment.json` | 平台不采集环境，硬件信息只能作业自己写 |
-| `/kaggle/working/run.log` | 日志要能随产物取回，而不是只留在平台网页里 |
-| `/kaggle/working/result.json` | 平台只报「跑完/没跑完」，真实退出码与指标必须由作业自己表达 |
-
-两条硬规则：**不要替换 `sys.stdout/stderr`**（平台会误判 ERROR），**不要在末尾 `sys.exit()`**（会被当异常）。
-完整字段、额度、失败分层与验证清单见 [kaggle-guide.md](./kaggle-guide.md)。
+完整的字段、脚本契约、额度护栏、失败分层与验证清单**只在** [kaggle-guide.md](./kaggle-guide.md) 维护，
+本节只保留与拓扑有关的五段链路差异，避免两处同步。
 
 ## 4. ③ 传输：单向，且每次记 HEAD
 

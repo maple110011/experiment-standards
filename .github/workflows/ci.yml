@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: 语法检查（全部 .py）
+        run: python -m compileall -q .
+      - name: Markdown 相对链接检查
+        run: python scripts/check_links.py
+      - name: evals.json 结构校验
+        run: python evals/run_evals.py --check-evals
+      - name: Kaggle 适配器无账号回归（假 CLI）
+        run: bash scripts/selftest_kaggle.sh
+      # 模板单元测试需要 torch，CI 不安装；本地用 requirements-dev.txt 后跑 python evals/run_evals.py

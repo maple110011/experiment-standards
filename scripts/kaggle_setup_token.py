@@ -6,11 +6,11 @@ r"""kaggle_setup_token.py - 把 Kaggle API token 写进 ~/.kaggle/access_token �
 ~/.kaggle/access_token（单行字符串）即可，CLI 会自动读取。
 
 用法（token 已复制到剪贴板，推荐，token 不会出现在对话里）:
-    python pfn-compute-research/scripts/kaggle_setup_token.py
+    python scripts/kaggle_setup_token.py
 从文件读取:
-    python pfn-compute-research/scripts/kaggle_setup_token.py --from-file C:\path\token.txt
+    python scripts/kaggle_setup_token.py --from-file C:\path\token.txt
 从旧的 kaggle.json 读取（username/key 格式）:
-    python pfn-compute-research/scripts/kaggle_setup_token.py --from-json C:\Users\...\Downloads\kaggle.json
+    python scripts/kaggle_setup_token.py --from-json C:\Users\...\Downloads\kaggle.json
 """
 import argparse
 import json
@@ -108,8 +108,8 @@ def main() -> int:
     if ok:
         print()
         print("下一步：")
-        print("  python pfn-compute-research/scripts/kaggle_job.py doctor")
-        print("  bash pfn-compute-research/scripts/stage1_kaggle.sh")
+        print("  python scripts/kaggle_job.py doctor")
+        print("  bash scripts/stage1_kaggle.sh")
         return 0
     print()
     print("如果验证失败：")

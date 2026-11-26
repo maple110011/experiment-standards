@@ -6,9 +6,11 @@ experiment-standards skill 的自动评测脚本。
   python evals/run_evals.py                            # 运行模板单元测试
   python evals/run_evals.py --check-outputs DIR        # 校验标准化输出目录
   python evals/run_evals.py --check-dcu-env ENV_JSON   # 校验 DCU/ROCm 环境记录
+  python evals/run_evals.py --check-evals              # 校验三个 skill 的 evals.json 结构
 """
 import os, sys, json, tempfile, argparse
-import torch
+# 不在模块顶层 import torch：纯逻辑检查（--check-evals / --check-outputs）不需要它，
+# 只有模板单元测试会通过模板自身间接导入 torch（缺 torch 时那几条会单独 FAIL 而不是整个脚本崩掉）。
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "..", "assets", "templates"))
@@ -44,6 +46,7 @@ def test_early_stopper_max():
     assert s(0.8) is True
 
 def test_ckpt_save_load_roundtrip():
+    import torch  # 局部导入：纯逻辑校验不需要 torch 时也能跑
     from checkpoint_manager import CheckpointManager, capture_rng_state
     with tempfile.TemporaryDirectory() as tmp:
         m = CheckpointManager(os.path.join(tmp, "ckpt"), keep_recent_n=3)
@@ -75,6 +78,7 @@ def test_ckpt_mode_max():
         assert m.update_best(1, 0.8) is False
 
 def test_environment_capture_keys():
+    import torch  # 局部导入：缺 torch 时这一条单独 FAIL，其余仍可跑
     from environment_capture import capture_environment
     env = capture_environment()
     for key in ["platform", "hostname", "python_version", "cpu", "gpu",
@@ -193,12 +197,65 @@ def check_dcu_env(env_json):
     print("PASS  DCU env check: backend/hip/gcn_arch recorded correctly")
 
 # ---------------------------------------------------------------------------
+def check_evals(repo_root):
+    """校验三个 skill 的 evals.json：字段完整、id 唯一、files 指向真实文件。"""
+    import glob
+    files = [
+        os.path.join(repo_root, "evals", "evals.json"),
+        os.path.join(repo_root, "bayes-dl-dcu", "evals", "evals.json"),
+        os.path.join(repo_root, "collab-lab", "evals", "evals.json"),
+    ]
+    problems = []
+    total = 0
+    for path in files:
+        if not os.path.exists(path):
+            problems.append(f"missing: {path}")
+            continue
+        data = json.load(open(path, encoding="utf-8"))
+        evs = data.get("evals")
+        if not isinstance(evs, list) or not evs:
+            problems.append(f"{path}: evals 不是非空列表")
+            continue
+        ids = set()
+        for ev in evs:
+            total += 1
+            if not isinstance(ev, dict):
+                problems.append(f"{path}: 存在非对象条目")
+                continue
+            if "id" not in ev or ev["id"] in ids:
+                problems.append(f"{path}: id 缺失或重复 -> {ev.get('id')}")
+            ids.add(ev.get("id"))
+            for key in ("prompt", "expected_output"):
+                if not str(ev.get(key) or "").strip():
+                    problems.append(f"{path}: id={ev.get('id')} 缺 {key}")
+            # files 相对各自 skill 的根目录（子 skill 的 evals 写在 <skill>/evals/ 下）
+            skill_root = os.path.dirname(os.path.dirname(os.path.abspath(path)))
+            for rel in ev.get("files", []):
+                if not os.path.exists(os.path.join(skill_root, rel)):
+                    problems.append(f"{path}: id={ev.get('id')} 的 files 指向不存在的文件 {rel}")
+    print(f"evals.json: {len(files)} 个文件，{total} 条用例")
+    for p in problems:
+        print("  - " + p)
+    if problems:
+        sys.exit(1)
+    print("PASS  evals.json 结构校验")
+
+
 if __name__ == "__main__":
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     ap = argparse.ArgumentParser()
     ap.add_argument("--check-outputs", default=None)
     ap.add_argument("--check-dcu-env", default=None)
+    ap.add_argument("--check-evals", action="store_true")
     args = ap.parse_args()
 
+    if args.check_evals:
+        check_evals(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+        sys.exit(0)
     if args.check_outputs:
         check_outputs_dir(args.check_outputs)
         sys.exit(0)

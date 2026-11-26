@@ -2,7 +2,7 @@
 """kaggle_job.py - DSH 侧的 Kaggle 作业协议适配器.
 
 把 Kaggle 的 kernels push / status / logs / output 包装成和
-experiment-standards-master/scripts/remote_job.sh 同语义的作业接口：
+scripts/remote_job.sh 同语义的作业接口：
 
   submit  提交一个 kernel（等价 remote_job.sh submit）
   status  查状态（等价 status）
@@ -19,12 +19,15 @@ experiment-standards-master/scripts/remote_job.sh 同语义的作业接口：
 才能让 DSH 用同一套命令驱动 Kaggle 和其他 SSH 平台。
 
 用法（在仓库根目录执行）:
-  python pfn-compute-research/scripts/kaggle_job.py doctor
-  python pfn-compute-research/scripts/kaggle_job.py quota
-  python pfn-compute-research/scripts/kaggle_job.py submit --name smoke --file job.py
-  python pfn-compute-research/scripts/kaggle_job.py status --name smoke --wait
-  python pfn-compute-research/scripts/kaggle_job.py logs   --name smoke
-  python pfn-compute-research/scripts/kaggle_job.py fetch  --name smoke
+  python scripts/kaggle_job.py doctor
+  python scripts/kaggle_job.py quota
+  python scripts/kaggle_job.py submit --name smoke --file job.py
+  python scripts/kaggle_job.py status --name smoke --wait
+  python scripts/kaggle_job.py logs   --name smoke
+  python scripts/kaggle_job.py fetch  --name smoke
+
+环境变量:
+  KAGGLE_JOB_ROOT  作业状态目录的根（默认脚本所在仓库），转发器用它把状态放回调用方项目
 """
 from __future__ import annotations
 
@@ -41,7 +44,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parent                      # pfn-compute-research/
+# 默认用脚本所在仓库；转发器/受限环境可用 KAGGLE_JOB_ROOT 覆盖（jobstate 放回调用方项目）。
+ROOT = Path(os.environ.get("KAGGLE_JOB_ROOT") or HERE.parent).resolve()
+# 可选：受限沙箱里可以把 kaggle 包装到 vendor/site；普通环境用全局安装的 CLI。
 VENDOR = ROOT / "vendor" / "site"
 STATE_DIR = ROOT / "jobstate"
 CONFIG_DIR = ROOT / ".kaggle"
